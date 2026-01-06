@@ -1,6 +1,6 @@
-console.log("Insecticide content script loaded");
+console.log("Pesticide content script loaded");
 
-let insecticideActive = false;
+let pesticideActive = false;
 let hoverInfoDiv = null;
 let currentHoverElement = null;
 let ctrlPressed = false;
@@ -91,7 +91,7 @@ const elementColors = {
   'sup': 'darksalmon',
   'sub': 'darkseagreen',
   'small': 'lightslategray',
-  'code': 'lightslategray',
+  'code': 'black',
   'pre': 'dimgray',
   'blockquote': 'silver',
   'q': 'lightsteelblue',
@@ -141,22 +141,22 @@ const defaultColor = 'gray';
 browser.runtime.onMessage.addListener((message) => {
   console.log("Content script received message:", message);
   
-  if (message.action === 'toggleInsecticide') {
+  if (message.action === 'togglePesticide') {
     if (message.isActive) {
-      activateInsecticide();
+      activatePesticide();
     } else {
-      deactivateInsecticide();
+      deactivatePesticide();
     }
     return Promise.resolve({success: true});
   }
 });
 
-// Create a unique class name for insecticide borders
-const insecticideClass = 'insecticide-border-' + Math.random().toString(36).substr(2, 9);
+// Create a unique class name for pesticide borders
+const pesticideClass = 'pesticide-border-' + Math.random().toString(36).substr(2, 9);
 
 // Add CSS styles to the page
-function addInsecticideStyles() {
-  const styleId = 'insecticide-styles';
+function addPesticideStyles() {
+  const styleId = 'pesticide-styles';
   
   // Remove existing styles if any
   const existingStyle = document.getElementById(styleId);
@@ -168,14 +168,14 @@ function addInsecticideStyles() {
   const style = document.createElement('style');
   style.id = styleId;
   style.textContent = `
-    .${insecticideClass} {
+    .${pesticideClass} {
       box-sizing: border-box !important;
       position: relative !important;
       background-clip: padding-box !important;
     }
     
     /* Force borders to stay visible */
-    .${insecticideClass}::before {
+    .${pesticideClass}::before {
       content: '' !important;
       position: absolute !important;
       top: 0 !important;
@@ -183,17 +183,17 @@ function addInsecticideStyles() {
       right: 0 !important;
       bottom: 0 !important;
       pointer-events: none !important;
-      z-index: 2147483646 !important;
+      z-index: 2147483647 !important; /* Maximum z-index */
     }
     
     /* Ensure borders are visible during scrolling */
-    .${insecticideClass}, .${insecticideClass} * {
+    .${pesticideClass}, .${pesticideClass} * {
       will-change: transform !important;
       backface-visibility: visible !important;
     }
     
     /* Make sure borders don't affect layout */
-    .${insecticideClass} {
+    .${pesticideClass} {
       contain: layout style paint !important;
     }
   `;
@@ -208,7 +208,7 @@ function addBorderToElement(element) {
   }
   
   // Skip elements that already have our border
-  if (element.classList.contains(insecticideClass)) {
+  if (element.classList.contains(pesticideClass)) {
     return;
   }
   
@@ -223,7 +223,7 @@ function addBorderToElement(element) {
   }
   
   // Add our class
-  element.classList.add(insecticideClass);
+  element.classList.add(pesticideClass);
   
   // Store original border
   if (!element.dataset.originalBorder) {
@@ -236,7 +236,7 @@ function addBorderToElement(element) {
   element.style.boxSizing = 'border-box !important';
   
   // Use CSS custom property for the color
-  element.style.setProperty('--insecticide-color', color, 'important');
+  element.style.setProperty('--pesticide-color', color, 'important');
   
   // Add a pseudo-element for the border to make it more persistent
   element.style.setProperty('border-color', color, 'important');
@@ -244,11 +244,11 @@ function addBorderToElement(element) {
 
 // Remove border from a single element
 function removeBorderFromElement(element) {
-  if (!element || !element.classList.contains(insecticideClass)) {
+  if (!element || !element.classList.contains(pesticideClass)) {
     return;
   }
   
-  element.classList.remove(insecticideClass);
+  element.classList.remove(pesticideClass);
   
   // Restore original border
   if (element.dataset.originalBorder !== undefined) {
@@ -262,7 +262,7 @@ function removeBorderFromElement(element) {
   }
   
   // Remove custom property
-  element.style.removeProperty('--insecticide-color');
+  element.style.removeProperty('--pesticide-color');
   element.style.removeProperty('border-color');
 }
 
@@ -271,7 +271,7 @@ function addBorders() {
   console.log("Adding borders to all elements");
   
   // Add our CSS styles
-  addInsecticideStyles();
+  addPesticideStyles();
   
   // Get ALL elements
   const allElements = document.querySelectorAll('*');
@@ -313,7 +313,7 @@ function removeBorders() {
   }
   
   // Remove all borders
-  const elementsWithBorders = document.querySelectorAll(`.${insecticideClass}`);
+  const elementsWithBorders = document.querySelectorAll(`.${pesticideClass}`);
   console.log(`Removing borders from ${elementsWithBorders.length} elements`);
   
   elementsWithBorders.forEach(element => {
@@ -321,7 +321,7 @@ function removeBorders() {
   });
   
   // Remove our styles
-  const styleElement = document.getElementById('insecticide-styles');
+  const styleElement = document.getElementById('pesticide-styles');
   if (styleElement) {
     styleElement.remove();
   }
@@ -339,7 +339,7 @@ function startObserving() {
   }
   
   observer = new MutationObserver((mutations) => {
-    if (!insecticideActive) return;
+    if (!pesticideActive) return;
     
     for (const mutation of mutations) {
       // Handle added nodes
@@ -367,90 +367,60 @@ function startObserving() {
   console.log("Started observing DOM changes");
 }
 
-// OPTIMIZED: Handle scroll events - only update visible elements
+// Handle scroll events to ensure borders stay visible
 function setupScrollHandler() {
   let scrollTimeout = null;
-  let isScrolling = false;
   
   const handleScroll = () => {
-    if (!insecticideActive) return;
+    // When scrolling, ensure borders are still visible
+    if (pesticideActive) {
+      // Force a re-render of borders
+      document.querySelectorAll(`.${pesticideClass}`).forEach(element => {
+        // This forces the browser to repaint the border
+        element.style.borderStyle = 'solid';
+      });
+    }
     
-    // Mark that we're scrolling
-    isScrolling = true;
-    
-    // Clear existing timeout
+    // Clear timeout
     if (scrollTimeout) {
       clearTimeout(scrollTimeout);
     }
     
-    // Set a timeout to update visible borders after scrolling stops
+    // Set a timeout to re-apply borders after scrolling stops
     scrollTimeout = setTimeout(() => {
-      isScrolling = false;
-      
-      if (insecticideActive) {
-        // Only update elements in viewport (optimized)
-        updateVisibleBorders();
+      if (pesticideActive) {
+        // Reapply borders to ensure they're visible
+        const elements = document.querySelectorAll('*');
+        elements.forEach(element => {
+          if (element.classList.contains(pesticideClass)) {
+            const tagName = element.tagName.toLowerCase();
+            const color = elementColors[tagName] || 
+                         elementColors['*'] || 
+                         defaultColor;
+            if (color !== 'transparent') {
+              element.style.border = `1px solid ${color} !important`;
+            }
+          }
+        });
       }
-    }, 150); // Increased delay for better performance
+    }, 100);
   };
   
-  // OPTIMIZED: Only update borders for elements currently visible in viewport
-  function updateVisibleBorders() {
-    const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
-    const scrollTop = window.scrollY;
-    const scrollLeft = window.scrollX;
-    
-    // Get elements with our border class
-    const borderedElements = document.querySelectorAll(`.${insecticideClass}`);
-    
-    // Only process elements that might be visible
-    borderedElements.forEach(element => {
-      const rect = element.getBoundingClientRect();
-      
-      // Check if element is in or near viewport (with buffer for smooth scrolling)
-      const buffer = 100; // pixels
-      const isInViewport = (
-        rect.bottom >= -buffer &&
-        rect.top <= viewportHeight + buffer &&
-        rect.right >= -buffer &&
-        rect.left <= viewportWidth + buffer
-      );
-      
-      if (isInViewport) {
-        // Reapply border to ensure it's visible
-        const tagName = element.tagName.toLowerCase();
-        const color = elementColors[tagName] || 
-                     elementColors['*'] || 
-                     defaultColor;
-        
-        if (color !== 'transparent') {
-          element.style.border = `1px solid ${color} !important`;
-        }
-      }
-    });
-  }
-  
-  // Use passive listeners for better scroll performance
   window.addEventListener('scroll', handleScroll, { passive: true });
-  window.addEventListener('resize', handleScroll, { passive: true });
+  
+  // Also listen for resize and orientation changes
+  window.addEventListener('resize', handleScroll);
   window.addEventListener('orientationchange', handleScroll);
 }
 
-// Create hover info div - with body existence check
+// Create hover info div
 function createHoverInfoDiv() {
-  // Wait for body to exist
-  if (!document.body) {
-    setTimeout(createHoverInfoDiv, 100);
-    return;
-  }
-  
   if (hoverInfoDiv) {
     hoverInfoDiv.remove();
   }
   
   hoverInfoDiv = document.createElement('div');
-  hoverInfoDiv.id = 'insecticide-hover-info';
+  hoverInfoDiv.id = 'pesticide-hover-info';
   hoverInfoDiv.style.cssText = `
     position: fixed;
     bottom: 0;
@@ -471,32 +441,23 @@ function createHoverInfoDiv() {
   document.body.appendChild(hoverInfoDiv);
 }
 
-// Update hover info - FIXED character encoding
+// Update hover info
 function updateHoverInfo(element) {
   if (!hoverInfoDiv || !element) return;
   
   const tagName = element.tagName.toLowerCase();
   const id = element.id ? `#${element.id}` : '';
-  
-  // FIXED: Handle className properly (could be string or DOMTokenList)
-  let classes = '';
-  if (element.className) {
-    if (typeof element.className === 'string') {
-      classes = element.className ? `.${element.className.split(' ').filter(c => c).join('.')}` : '';
-    } else if (element.classList && element.classList.length > 0) {
-      classes = `.${Array.from(element.classList).join('.')}`;
-    }
-  }
-  
+  const classes = element.className && typeof element.className === 'string' 
+    ? `.${element.className.split(' ').join('.')}` 
+    : '';
   const color = elementColors[tagName] || elementColors['*'] || defaultColor;
   
-  // FIXED: Proper multiplication symbol (was Ã—)
   hoverInfoDiv.innerHTML = `
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
       <div style="flex: 1;">
         <strong style="color: #4CAF50;">Element:</strong> &lt;${tagName}${id}${classes}&gt;
         <br>
-        <strong style="color: #4CAF50;">Dimensions:</strong> ${element.offsetWidth}px x ${element.offsetHeight}px
+        <strong style="color: #4CAF50;">Dimensions:</strong> ${element.offsetWidth}px × ${element.offsetHeight}px
         <br>
         <strong style="color: #4CAF50;">Position:</strong> X:${element.offsetLeft}, Y:${element.offsetTop}
         <br>
@@ -514,14 +475,14 @@ function updateHoverInfo(element) {
 // Event handlers for hover info
 function setupHoverHandlers() {
   function handleMouseOver(e) {
-    if (!insecticideActive || !ctrlPressed) return;
+    if (!pesticideActive || !ctrlPressed) return;
     
     currentHoverElement = e.target;
     updateHoverInfo(currentHoverElement);
   }
   
   function handleMouseOut(e) {
-    if (!insecticideActive || !hoverInfoDiv) return;
+    if (!pesticideActive || !hoverInfoDiv) return;
     
     if (currentHoverElement === e.target) {
       hoverInfoDiv.style.display = 'none';
@@ -532,7 +493,7 @@ function setupHoverHandlers() {
   function handleKeyDown(e) {
     if (e.key === 'Control' || e.key === 'Meta') {
       ctrlPressed = true;
-      if (insecticideActive && currentHoverElement) {
+      if (pesticideActive && currentHoverElement) {
         updateHoverInfo(currentHoverElement);
       }
     }
@@ -553,14 +514,14 @@ function setupHoverHandlers() {
   document.addEventListener('keyup', handleKeyUp, true);
 }
 
-// Activate insecticide - with body existence check
-function activateInsecticide() {
-  if (insecticideActive) return;
+// Activate pesticide
+function activatePesticide() {
+  if (pesticideActive) return;
   
-  console.log("Activating insecticide");
-  insecticideActive = true;
+  console.log("Activating pesticide");
+  pesticideActive = true;
   
-  // Create hover info div (with body check inside)
+  // Create hover info div
   createHoverInfoDiv();
   
   // Add borders to all elements
@@ -572,43 +533,34 @@ function activateInsecticide() {
   // Setup hover handlers
   setupHoverHandlers();
   
-  // Add visual indicator - with body check
-  function addIndicator() {
-    if (!document.body) {
-      setTimeout(addIndicator, 100);
-      return;
-    }
-    
-    const indicator = document.createElement('div');
-    indicator.id = 'insecticide-active-indicator';
-    indicator.textContent = 'INSECTICIDE ACTIVE (Ctrl + Hover for info)';
-    indicator.style.cssText = `
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background: #4CAF50;
-      color: white;
-      padding: 8px 12px;
-      z-index: 2147483646;
-      font-family: Arial, sans-serif;
-      font-size: 12px;
-      border-radius: 4px;
-      font-weight: bold;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-      pointer-events: none;
-    `;
-    document.body.appendChild(indicator);
-  }
-  
-  addIndicator();
+  // Add visual indicator
+  const indicator = document.createElement('div');
+  indicator.id = 'pesticide-active-indicator';
+  indicator.textContent = 'PESTICIDE ACTIVE (Ctrl + Hover for info)';
+  indicator.style.cssText = `
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: #4CAF50;
+    color: white;
+    padding: 8px 12px;
+    z-index: 2147483646;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    border-radius: 4px;
+    font-weight: bold;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    pointer-events: none;
+  `;
+  document.body.appendChild(indicator);
 }
 
-// Deactivate insecticide
-function deactivateInsecticide() {
-  if (!insecticideActive) return;
+// Deactivate pesticide
+function deactivatePesticide() {
+  if (!pesticideActive) return;
   
-  console.log("Deactivating insecticide");
-  insecticideActive = false;
+  console.log("Deactivating pesticide");
+  pesticideActive = false;
   
   // Remove borders
   removeBorders();
@@ -620,14 +572,28 @@ function deactivateInsecticide() {
   }
   
   // Remove indicator
-  const indicator = document.getElementById('insecticide-active-indicator');
+  const indicator = document.getElementById('pesticide-active-indicator');
   if (indicator) {
     indicator.remove();
   }
   
-  currentHoverElement = null;
-  ctrlPressed = false;
+  // Remove event listeners
+  // (We could keep track of them, but for simplicity, we'll rely on garbage collection)
 }
 
 // Send ready message
-console.log("Insecticide content script ready");
+console.log("Pesticide content script ready");
+
+// Optional: Auto-activate if the extension was active before page reload
+browser.storage.local.get(['pesticideActive']).then(result => {
+  if (result.pesticideActive) {
+    // Wait a bit for the page to fully load
+    setTimeout(() => {
+      if (document.readyState === 'complete') {
+        activatePesticide();
+      } else {
+        window.addEventListener('load', () => activatePesticide());
+      }
+    }, 100);
+  }
+});

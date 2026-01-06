@@ -5,3 +5,7 @@
 20260105-131858-content.js-bak:
 20260105-131957-manifest.json:
 20260105-134831-background.js-bak:
+20260105-133143-content.js-bak: deepseek version
+20260105-141812-manifest.json:
+20260105-135136-background.js-bak: deepseek version
+20260106-104555-background.js-bak: deepseek version

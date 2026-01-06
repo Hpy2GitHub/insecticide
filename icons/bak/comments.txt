@@ -1,1 +1,3 @@
 20260105-130913-icons48-active.svg:
+20260105-141643-svg2npng.sh:
+20260106-105012-svg2npng.sh: only makes inactive icons
