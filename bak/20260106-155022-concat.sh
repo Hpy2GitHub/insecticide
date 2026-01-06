@@ -8,7 +8,6 @@ console.log("Insecticide content script loaded");
 
 const MAX_BORDERED_ELEMENTS = 5000;
 let borderedElementCount = 0;
-let maxLimitAlertShown = false;
 
 let insecticideActive = false;
 let hoverInfoDiv = null;
@@ -44,11 +43,6 @@ browser.runtime.onMessage.addListener((message) => {
     }
     return Promise.resolve({success: true});
   }
-  
-  if (message.action === 'checkState') {
-    // Respond with current state
-    return Promise.resolve({isActive: insecticideActive});
-  }
 });
 
 // Add CSS styles
@@ -57,7 +51,7 @@ function addInsecticideStyles() {
   const styleId = 'insecticide-styles';
   
   if (document.getElementById(styleId)) {
-    return;
+    return; // Already exists
   }
   
   const style = document.createElement('style');
@@ -73,28 +67,26 @@ function addInsecticideStyles() {
 
 function addBorderToElement(element) {
   if (!element || element === document.documentElement || element === document.body) {
-    return false;
+    return;
   }
 
   if (element.classList.contains(insecticideClass)) {
-    return false;
+    return;
   }
 
-  // FIXED: Check limit BEFORE adding, show alert only once
   if (borderedElementCount >= MAX_BORDERED_ELEMENTS) {
-    if (!maxLimitAlertShown) {
+    if (borderedElementCount === MAX_BORDERED_ELEMENTS) {
       console.warn(`Max element limit (${MAX_BORDERED_ELEMENTS}) reached`);
-      alert(`Insecticide: Maximum element limit (${MAX_BORDERED_ELEMENTS}) reached.\nSome elements may not have borders.`);
-      maxLimitAlertShown = true;
+      borderedElementCount++;
     }
-    return false;
+    return;
   }
 
   const tagName = element.tagName.toLowerCase();
   const color = elementColors[tagName] || defaultColor;
 
   if (color === 'transparent') {
-    return false;
+    return;
   }
 
   element.classList.add(insecticideClass);
@@ -106,8 +98,6 @@ function addBorderToElement(element) {
 
   element.style.border = `1px solid ${color}`;
   element.style.boxSizing = 'border-box';
-  
-  return true;
 }
 
 function removeBorderFromElement(element) {
@@ -133,8 +123,7 @@ function addBorders() {
   const allElements = document.querySelectorAll('*');
   console.log(`Found ${allElements.length} elements`);
   
-  borderedElementCount = 0;
-  maxLimitAlertShown = false; // Reset for new activation
+  borderedElementCount = 0; // Reset counter
   
   // Add borders in batches
   const batchSize = 1000;
@@ -144,13 +133,7 @@ function addBorders() {
     const end = Math.min(start + batchSize, allElements.length);
     
     for (let i = start; i < end; i++) {
-      const added = addBorderToElement(allElements[i]);
-      // Stop processing if we hit the limit
-      if (!added && borderedElementCount >= MAX_BORDERED_ELEMENTS) {
-        console.log(`Stopped at element ${i} due to limit`);
-        startObserving();
-        return;
-      }
+      addBorderToElement(allElements[i]);
     }
     
     processed = end;
@@ -182,8 +165,7 @@ function removeBorders() {
     removeBorderFromElement(element);
   });
   
-  borderedElementCount = 0;
-  maxLimitAlertShown = false;
+  borderedElementCount = 0; // Reset counter after removing all
   
   const styleElement = document.getElementById('insecticide-styles');
   if (styleElement) {
@@ -243,14 +225,9 @@ function startObserving() {
   console.log("Started observing DOM changes");
 }
 
-// FIXED: Create hover info panel - moved to TOP RIGHT to avoid browser link previews
+// Create hover info panel
 function createHoverInfoDiv() {
   if (hoverInfoDiv) return;
-
-  if (!document.body) {
-    setTimeout(createHoverInfoDiv, 100);
-    return;
-  }
 
   hoverInfoDiv = document.createElement('div');
   hoverInfoDiv.id = 'insecticide-hover-info';
@@ -258,78 +235,51 @@ function createHoverInfoDiv() {
     position: fixed;
     top: 60px;
     right: 10px;
-    width: 400px;
-    background: rgba(0, 0, 0, 0.95);
-    color: #4CAF50;
+    width: 350px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
     padding: 12px 15px;
     font-family: 'Monaco', 'Menlo', monospace;
-    font-size: 12px;
+    font-size: 11px;
     z-index: 2147483647;
     display: none;
-    border: 2px solid #4CAF50;
+    border: 1px solid #4CAF50;
     border-radius: 4px;
-    max-height: 300px;
+    max-height: 200px;
     overflow-y: auto;
-    line-height: 1.6;
+    line-height: 1.4;
     pointer-events: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
   `;
   document.body.appendChild(hoverInfoDiv);
 }
 
-// Update hover info panel with element details
 function updateHoverInfo(element) {
-  if (!hoverInfoDiv || !element) {
-    console.log("updateHoverInfo: missing hoverInfoDiv or element");
-    return;
-  }
+  if (!hoverInfoDiv || !element) return;
   
   hoverInfoDiv.textContent = '';
   
   const tagName = element.tagName.toLowerCase();
   const id = element.id ? `#${element.id}` : '';
-  const classes = element.className ? 
-    (typeof element.className === 'string' ? 
-      `.${element.className.split(' ').filter(c => c && c !== insecticideClass).join('.')}` : '') : '';
+  const classes = element.className ? `.${element.className.split(' ').join('.')}` : '';
   
-  const rect = element.getBoundingClientRect();
+  const infoLine = document.createElement('div');
+  infoLine.textContent = `<${tagName}${id}${classes}> | ${element.offsetWidth}×${element.offsetHeight}px`;
   
-  // Create info display
-  const info = document.createElement('div');
-  info.style.cssText = 'white-space: pre-wrap; word-break: break-word;';
-  
-  const lines = [
-    `Element: <${tagName}${id}${classes}>`,
-    `Size: ${element.offsetWidth} × ${element.offsetHeight}px`,
-    `Position: ${Math.round(rect.left)}, ${Math.round(rect.top)}`,
-    `Border Color: ${elementColors[tagName] || defaultColor}`
-  ];
-  
-  info.textContent = lines.join('\n');
-  
-  hoverInfoDiv.appendChild(info);
+  hoverInfoDiv.appendChild(infoLine);
   hoverInfoDiv.style.display = 'block';
-  
-  console.log(`Showing hover info for: ${tagName}${id}`);
 }
 
-// FIXED: Event handlers with better debugging
+// Event handlers
 function setupHoverHandlers() {
-  console.log("Setting up hover handlers");
-  
   function handleMouseOver(e) {
-    if (!insecticideActive) return;
-    
+    if (!insecticideActive || !ctrlPressed) return;
     currentHoverElement = e.target;
-    
-    if (ctrlPressed) {
-      updateHoverInfo(currentHoverElement);
-    }
+    updateHoverInfo(currentHoverElement);
   }
   
   function handleMouseOut(e) {
     if (!insecticideActive || !hoverInfoDiv) return;
-    
     if (currentHoverElement === e.target) {
       hoverInfoDiv.style.display = 'none';
       currentHoverElement = null;
@@ -339,8 +289,6 @@ function setupHoverHandlers() {
   function handleKeyDown(e) {
     if (e.key === 'Control' || e.key === 'Meta') {
       ctrlPressed = true;
-      console.log("Ctrl pressed - hover info enabled");
-      
       if (insecticideActive && currentHoverElement) {
         updateHoverInfo(currentHoverElement);
       }
@@ -350,27 +298,16 @@ function setupHoverHandlers() {
   function handleKeyUp(e) {
     if (e.key === 'Control' || e.key === 'Meta') {
       ctrlPressed = false;
-      console.log("Ctrl released - hover info disabled");
-      
       if (hoverInfoDiv) {
         hoverInfoDiv.style.display = 'none';
       }
     }
   }
   
-  // Remove old listeners first (if any)
-  document.removeEventListener('mouseover', handleMouseOver, true);
-  document.removeEventListener('mouseout', handleMouseOut, true);
-  document.removeEventListener('keydown', handleKeyDown, true);
-  document.removeEventListener('keyup', handleKeyUp, true);
-  
-  // Add new listeners
   document.addEventListener('mouseover', handleMouseOver, true);
   document.addEventListener('mouseout', handleMouseOut, true);
   document.addEventListener('keydown', handleKeyDown, true);
   document.addEventListener('keyup', handleKeyUp, true);
-  
-  console.log("Hover handlers set up - Press Ctrl and hover over elements");
 }
 
 // Activate
@@ -394,7 +331,7 @@ function activateInsecticide() {
   
   const indicator = document.createElement('div');
   indicator.id = 'insecticide-active-indicator';
-  indicator.textContent = 'INSECTICIDE ACTIVE - Hold Ctrl + Hover for element info';
+  indicator.textContent = 'INSECTICIDE ACTIVE (Ctrl + Hover for info)';
   indicator.style.cssText = `
     position: fixed;
     top: 10px;

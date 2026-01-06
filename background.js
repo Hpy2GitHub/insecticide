@@ -1,165 +1,163 @@
 // Track active state per tab
 const activeTabs = {};
 
-// Function to update the icon and title
+// Update icon and title
 function updateIcon(tabId, isActive) {
   const iconPath = isActive ? {
-    16: 'icons/icon16-active.png',
-    32: 'icons/icon32-active.png',
-    48: 'icons/icon48-active.png'
+    16: 'icons/icon-active-16.png',
+    32: 'icons/icon-active-32.png',
+    48: 'icons/icon-active-48.png',
+    128: 'icons/icon-active-128.png'
   } : {
     16: 'icons/icon16.png',
     32: 'icons/icon32.png',
-    48: 'icons/icon48.png'
+    48: 'icons/icon48.png',
+    128: 'icons/icon128.png'
   };
   
-  try {
-    browser.browserAction.setIcon({
-      tabId: tabId,
-      path: iconPath
-    });
-  } catch (error) {
-    console.error("Failed to set icon:", error);
-  }
+  browser.action.setIcon({ tabId, path: iconPath }).catch(err => 
+    console.error("Failed to set icon:", err)
+  );
   
-  try {
-    browser.browserAction.setTitle({
-      tabId: tabId,
-      title: isActive ? "Insecticide: ON (Ctrl+Shift+X)" : "Insecticide: OFF (Ctrl+Shift+X)"
-    });
-  } catch (error) {
-    console.error("Failed to set title:", error);
-  }
+  browser.action.setTitle({
+    tabId,
+    title: isActive ? "Insecticide: ON (Ctrl+Shift+U)" : "Insecticide: OFF (Ctrl+Shift+U)"
+  }).catch(err => 
+    console.error("Failed to set title:", err)
+  );
 }
 
-// Function to toggle insecticide for a tab
+// Toggle insecticide for a tab
 async function toggleInsecticide(tabId) {
   try {
-    // Toggle state
     const currentActive = activeTabs[tabId] || false;
     const newActive = !currentActive;
     
-    // Store state in memory
+    // Update state
     activeTabs[tabId] = newActive;
     
-    // FIXED: Save state to storage for persistence
-    try {
-      await browser.storage.local.set({ 
-        [`insecticideActive_${tabId}`]: newActive 
-      });
-    } catch (error) {
-      console.error("Failed to save state to storage:", error);
-    }
+    // Save to storage for persistence
+    await browser.storage.local.set({ 
+      [`insecticideActive_${tabId}`]: newActive 
+    });
     
-    // Update icon
     updateIcon(tabId, newActive);
     
     // Send message to content script
-    try {
-      await browser.tabs.sendMessage(tabId, {
-        action: 'toggleInsecticide',
-        isActive: newActive
-      });
-      console.log(`Insecticide ${newActive ? 'activated' : 'deactivated'} for tab ${tabId}`);
-    } catch (error) {
-      console.log("Could not send message, injecting script...", error);
-      
-      // Try to inject the content script
-      try {
-        await browser.tabs.executeScript(tabId, {
-          file: "content.js"
-        });
-        
-        // Also inject CSS
-        await browser.tabs.insertCSS(tabId, {
-          file: "styles.css"
-        });
-        
-        // Try sending message again after a delay
-        setTimeout(async () => {
-          try {
-            await browser.tabs.sendMessage(tabId, {
-              action: 'toggleInsecticide',
-              isActive: newActive
-            });
-          } catch (e) {
-            console.error("Failed to activate insecticide after injection:", e);
-          }
-        }, 500);
-      } catch (injectError) {
-        console.error("Failed to inject scripts:", injectError);
-      }
-    }
+    await browser.tabs.sendMessage(tabId, {
+      action: 'toggleInsecticide',
+      isActive: newActive
+    });
+    
+    console.log(`Insecticide ${newActive ? 'ON' : 'OFF'} for tab ${tabId}`);
   } catch (error) {
-    console.error("Error in toggleInsecticide:", error);
+    console.error("Toggle error:", error);
   }
 }
 
-// Listen for browser action clicks
-browser.browserAction.onClicked.addListener(async (tab) => {
+// FIXED: Sync state when switching tabs
+async function syncTabState(tabId) {
+  try {
+    // Check if we think this tab is active
+    const shouldBeActive = activeTabs[tabId] || false;
+    
+    // Update icon to match stored state
+    updateIcon(tabId, shouldBeActive);
+    
+    // Also verify with content script
+    try {
+      const response = await browser.tabs.sendMessage(tabId, {
+        action: 'checkState'
+      });
+      
+      if (response && response.isActive !== shouldBeActive) {
+        // State mismatch - sync them
+        console.log(`Syncing state for tab ${tabId}: background=${shouldBeActive}, content=${response.isActive}`);
+        activeTabs[tabId] = response.isActive;
+        updateIcon(tabId, response.isActive);
+      }
+    } catch (error) {
+      // Content script not ready yet
+      console.log(`Content script not ready on tab ${tabId}`);
+    }
+  } catch (error) {
+    console.error("Error syncing tab state:", error);
+  }
+}
+
+// Listen for toolbar button clicks
+browser.action.onClicked.addListener(async (tab) => {
   await toggleInsecticide(tab.id);
 });
 
-// Listen for keyboard shortcut (if defined in manifest)
+// Listen for keyboard shortcut
 browser.commands.onCommand.addListener(async (command) => {
+  console.log(`Command received: "${command}"`);
+  
   if (command === "toggle-insecticide") {
+    console.log("Toggle-insecticide command triggered!");
     try {
-      // Get active tab
       const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+      console.log("Active tabs:", tabs);
+      
       if (tabs[0]) {
+        console.log(`Toggling insecticide for tab ${tabs[0].id}`);
         await toggleInsecticide(tabs[0].id);
+      } else {
+        console.error("No active tab found");
       }
     } catch (error) {
-      console.error("Error handling keyboard command:", error);
+      console.error("Keyboard shortcut error:", error);
     }
+  } else {
+    console.log(`Unknown command: ${command}`);
   }
 });
 
 // Clean up when tab is closed
 browser.tabs.onRemoved.addListener((tabId) => {
   delete activeTabs[tabId];
-  
-  // Clean up storage
-  try {
-    browser.storage.local.remove(`insecticideActive_${tabId}`);
-  } catch (error) {
-    console.error("Error cleaning up storage:", error);
-  }
+  browser.storage.local.remove(`insecticideActive_${tabId}`);
+  console.log(`Cleaned up state for closed tab ${tabId}`);
 });
 
-// Update icon when switching tabs
+// FIXED: Update icon and sync state when switching tabs
 browser.tabs.onActivated.addListener(async (activeInfo) => {
-  try {
-    const isActive = activeTabs[activeInfo.tabId] || false;
-    updateIcon(activeInfo.tabId, isActive);
-  } catch (error) {
-    console.error("Error updating icon on tab switch:", error);
-  }
+  console.log(`Switched to tab ${activeInfo.tabId}`);
+  await syncTabState(activeInfo.tabId);
 });
 
-// FIXED: Restore state when browser starts or extension reloads
+// Restore state when page loads or reloads
 browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // Only check when page finishes loading
   if (changeInfo.status === 'complete') {
     try {
+      // Check storage for this tab's previous state
       const result = await browser.storage.local.get(`insecticideActive_${tabId}`);
       const wasActive = result[`insecticideActive_${tabId}`] || false;
+      
+      console.log(`Tab ${tabId} loaded, previous state: ${wasActive}`);
       
       if (wasActive) {
         // Restore active state
         activeTabs[tabId] = true;
         updateIcon(tabId, true);
         
-        // Try to activate on the page
-        try {
-          await browser.tabs.sendMessage(tabId, {
-            action: 'toggleInsecticide',
-            isActive: true
-          });
-        } catch (error) {
-          // Content script not loaded yet, it will restore from its own storage check
-          console.log("Content script will restore state when ready");
-        }
+        // Wait a bit for content script to be ready, then activate
+        setTimeout(async () => {
+          try {
+            await browser.tabs.sendMessage(tabId, {
+              action: 'toggleInsecticide',
+              isActive: true
+            });
+            console.log(`Restored insecticide state on tab ${tabId}`);
+          } catch (error) {
+            console.log(`Could not restore state on tab ${tabId}:`, error);
+          }
+        }, 500);
+      } else {
+        // Make sure icon shows inactive state
+        activeTabs[tabId] = false;
+        updateIcon(tabId, false);
       }
     } catch (error) {
       console.error("Error restoring state:", error);
@@ -167,4 +165,33 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
+// FIXED: Load all stored states on startup
+browser.runtime.onStartup.addListener(async () => {
+  console.log("Extension started, loading saved states");
+  try {
+    const allStorage = await browser.storage.local.get(null);
+    for (const key in allStorage) {
+      if (key.startsWith('insecticideActive_')) {
+        const tabId = parseInt(key.replace('insecticideActive_', ''));
+        if (allStorage[key]) {
+          activeTabs[tabId] = true;
+          console.log(`Loaded saved state for tab ${tabId}: active`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error loading saved states:", error);
+  }
+});
+
 console.log("Insecticide background script loaded");
+
+// Test: List all registered commands on startup
+browser.commands.getAll().then(commands => {
+  console.log("Registered commands:", commands);
+  commands.forEach(cmd => {
+    console.log(`  - ${cmd.name}: ${cmd.shortcut || 'no shortcut'}`);
+  });
+}).catch(err => {
+  console.error("Failed to get commands:", err);
+});

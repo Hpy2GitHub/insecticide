@@ -1,36 +1,41 @@
 {
   "manifest_version": 3,
   "name": "Insecticide for Firefox",
-  "version": "3",
+  "version": "1.0",
   "browser_specific_settings": {
     "gecko": {
-      "id": "insecticide@bc_consulting.com",
-      "strict_min_version": "140.0",
+      "id": "your-extension@example.com",
+      "strict_min_version": "109.0",
       "data_collection_permissions": {
-        "required": ["none"]
+        "technical": false,
+        "personal": false
       }
     }
   },
+  "description": "Outline all elements on the page to visualize layout",
   "permissions": [
     "activeTab",
     "storage",
     "scripting"
   ],
-  "action": {
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "32": "icons/icon32.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
-  },
   "background": {
     "scripts": ["background.js"]
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon48-16.png",
+      "32": "icons/icon48-32.png",
+      "48": "icons/icon48-48.png",
+      "128": "icons/icon48-128.png"
+    },
+    "default_title": "Toggle Insecticide (Ctrl+Shift+U)"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
     }
   ],
   "commands": {

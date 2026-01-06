@@ -25,15 +25,15 @@ function updateIcon(tabId, isActive) {
   try {
     browser.browserAction.setTitle({
       tabId: tabId,
-      title: isActive ? "Pesticide: ON (Ctrl+Shift+X)" : "Pesticide: OFF (Ctrl+Shift+X)"
+      title: isActive ? "Insecticide: ON (Ctrl+Shift+X)" : "Insecticide: OFF (Ctrl+Shift+X)"
     });
   } catch (error) {
     console.error("Failed to set title:", error);
   }
 }
 
-// Function to toggle pesticide for a tab
-async function togglePesticide(tabId) {
+// Function to toggle insecticide for a tab
+async function toggleInsecticide(tabId) {
   try {
     // Toggle state
     const currentActive = activeTabs[tabId] || false;
@@ -45,7 +45,7 @@ async function togglePesticide(tabId) {
     // FIXED: Save state to storage for persistence
     try {
       await browser.storage.local.set({ 
-        [`pesticideActive_${tabId}`]: newActive 
+        [`insecticideActive_${tabId}`]: newActive 
       });
     } catch (error) {
       console.error("Failed to save state to storage:", error);
@@ -57,10 +57,10 @@ async function togglePesticide(tabId) {
     // Send message to content script
     try {
       await browser.tabs.sendMessage(tabId, {
-        action: 'togglePesticide',
+        action: 'toggleInsecticide',
         isActive: newActive
       });
-      console.log(`Pesticide ${newActive ? 'activated' : 'deactivated'} for tab ${tabId}`);
+      console.log(`Insecticide ${newActive ? 'activated' : 'deactivated'} for tab ${tabId}`);
     } catch (error) {
       console.log("Could not send message, injecting script...", error);
       
@@ -79,11 +79,11 @@ async function togglePesticide(tabId) {
         setTimeout(async () => {
           try {
             await browser.tabs.sendMessage(tabId, {
-              action: 'togglePesticide',
+              action: 'toggleInsecticide',
               isActive: newActive
             });
           } catch (e) {
-            console.error("Failed to activate pesticide after injection:", e);
+            console.error("Failed to activate insecticide after injection:", e);
           }
         }, 500);
       } catch (injectError) {
@@ -91,23 +91,23 @@ async function togglePesticide(tabId) {
       }
     }
   } catch (error) {
-    console.error("Error in togglePesticide:", error);
+    console.error("Error in toggleInsecticide:", error);
   }
 }
 
 // Listen for browser action clicks
 browser.browserAction.onClicked.addListener(async (tab) => {
-  await togglePesticide(tab.id);
+  await toggleInsecticide(tab.id);
 });
 
 // Listen for keyboard shortcut (if defined in manifest)
 browser.commands.onCommand.addListener(async (command) => {
-  if (command === "toggle-pesticide") {
+  if (command === "toggle-insecticide") {
     try {
       // Get active tab
       const tabs = await browser.tabs.query({ active: true, currentWindow: true });
       if (tabs[0]) {
-        await togglePesticide(tabs[0].id);
+        await toggleInsecticide(tabs[0].id);
       }
     } catch (error) {
       console.error("Error handling keyboard command:", error);
@@ -121,7 +121,7 @@ browser.tabs.onRemoved.addListener((tabId) => {
   
   // Clean up storage
   try {
-    browser.storage.local.remove(`pesticideActive_${tabId}`);
+    browser.storage.local.remove(`insecticideActive_${tabId}`);
   } catch (error) {
     console.error("Error cleaning up storage:", error);
   }
@@ -142,8 +142,8 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // Only check when page finishes loading
   if (changeInfo.status === 'complete') {
     try {
-      const result = await browser.storage.local.get(`pesticideActive_${tabId}`);
-      const wasActive = result[`pesticideActive_${tabId}`] || false;
+      const result = await browser.storage.local.get(`insecticideActive_${tabId}`);
+      const wasActive = result[`insecticideActive_${tabId}`] || false;
       
       if (wasActive) {
         // Restore active state
@@ -153,7 +153,7 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         // Try to activate on the page
         try {
           await browser.tabs.sendMessage(tabId, {
-            action: 'togglePesticide',
+            action: 'toggleInsecticide',
             isActive: true
           });
         } catch (error) {
@@ -167,4 +167,14 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
-console.log("Pesticide background script loaded");
+// Add this case to your existing message listener in background.js
+browser.runtime.onMessage.addListener(async (message, sender) => {
+  if (message.action === 'deactivateOnScroll') {
+    const tabId = sender.tab.id;
+    // Only toggle if currently active
+    if (activeTabs[tabId]) {
+      await toggleInsecticide(tabId);
+    }
+  }
+});
+console.log("Insecticide background script loaded");

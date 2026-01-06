@@ -247,11 +247,6 @@ function startObserving() {
 function createHoverInfoDiv() {
   if (hoverInfoDiv) return;
 
-  if (!document.body) {
-    setTimeout(createHoverInfoDiv, 100);
-    return;
-  }
-
   hoverInfoDiv = document.createElement('div');
   hoverInfoDiv.id = 'insecticide-hover-info';
   hoverInfoDiv.style.cssText = `
@@ -277,12 +272,8 @@ function createHoverInfoDiv() {
   document.body.appendChild(hoverInfoDiv);
 }
 
-// Update hover info panel with element details
 function updateHoverInfo(element) {
-  if (!hoverInfoDiv || !element) {
-    console.log("updateHoverInfo: missing hoverInfoDiv or element");
-    return;
-  }
+  if (!hoverInfoDiv || !element) return;
   
   hoverInfoDiv.textContent = '';
   
