@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Background with active gradient -->
+  <defs>
+    <linearGradient id="activeBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#27ae60;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2ecc71;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="insectBody" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e74c3c;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c0392b;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="0" dy="0" result="offsetblur"/>
+      <feFlood flood-color="#4CAF50" flood-opacity="0.8"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background circle with glow effect -->
+  <circle cx="24" cy="24" r="22" fill="url(#activeBg)" filter="url(#glow)"/>
+  
+  <!-- Insect body with stronger colors -->
+  <ellipse cx="24" cy="24" rx="14" ry="10" fill="url(#insectBody)"/>
+  <ellipse cx="24" cy="20" rx="8" ry="6" fill="#2c3e50"/>
+  
+  <!-- Colorful grid pattern (representing different element borders) -->
+  <g stroke-width="1">
+    <!-- Red lines (divs) -->
+    <line x1="18" y1="18" x2="30" y2="18" stroke="#e74c3c"/>
+    <line x1="18" y1="26" x2="30" y2="26" stroke="#e74c3c"/>
+    <!-- Green lines (paragraphs) -->
+    <line x1="18" y1="22" x2="30" y2="22" stroke="#2ecc71"/>
+    <line x1="18" y1="30" x2="30" y2="30" stroke="#2ecc71"/>
+    <!-- Blue lines (spans) -->
+    <line x1="16" y1="20" x2="16" y2="28" stroke="#3498db"/>
+    <line x1="24" y1="20" x2="24" y2="28" stroke="#3498db"/>
+    <line x1="32" y1="20" x2="32" y2="28" stroke="#3498db"/>
+    <!-- Orange lines (links) -->
+    <line x1="20" y1="20" x2="20" y2="28" stroke="#e67e22"/>
+    <!-- Purple lines (lists) -->
+    <line x1="28" y1="20" x2="28" y2="28" stroke="#9b59b6"/>
+  </g>
+  
+  <!-- Insect details (brighter) -->
+  <circle cx="20" cy="20" r="1.8" fill="#fff"/>
+  <circle cx="28" cy="20" r="1.8" fill="#fff"/>
+  <ellipse cx="24" cy="30" rx="2.5" ry="1.2" fill="#e74c3c"/>
+  
+  <!-- Insect legs -->
+  <g stroke="#2c3e50" stroke-width="1.8" stroke-linecap="round">
+    <line x1="18" y1="22" x2="14" y2="20"/>
+    <line x1="18" y1="24" x2="14" y2="26"/>
+    <line x1="22" y1="26" x2="18" y2="28"/>
+    <line x1="26" y1="26" x2="30" y2="28"/>
+    <line x1="30" y1="22" x2="34" y2="20"/>
+    <line x1="30" y1="24" x2="34" y2="26"/>
+  </g>
+  
+  <!-- Antennae -->
+  <g stroke="#2c3e50" stroke-width="1.2" stroke-linecap="round">
+    <line x1="20" y1="18" x2="16" y2="14"/>
+    <line x1="28" y1="18" x2="32" y2="14"/>
+  </g>
+  
+  <!-- Active indicator: glowing dots (like the pesticide is working) -->
+  <circle cx="8" cy="8" r="3" fill="#fff" opacity="0.9">
+    <animate attributeName="r" values="3;4;3" dur="1s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.9;1;0.9" dur="1s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Border segments around the icon (representing page borders) -->
+  <g stroke-width="2" stroke-linecap="round">
+    <line x1="6" y1="6" x2="12" y2="6" stroke="#e74c3c"/>
+    <line x1="6" y1="6" x2="6" y2="12" stroke="#e74c3c"/>
+    <line x1="42" y1="6" x2="36" y2="6" stroke="#2ecc71"/>
+    <line x1="42" y1="6" x2="42" y2="12" stroke="#2ecc71"/>
+    <line x1="6" y1="42" x2="12" y2="42" stroke="#3498db"/>
+    <line x1="6" y1="42" x2="6" y2="36" stroke="#3498db"/>
+    <line x1="42" y1="42" x2="36" y2="42" stroke="#9b59b6"/>
+    <line x1="42" y1="42" x2="42" y2="36" stroke="#9b59b6"/>
+  </g>
+</svg>

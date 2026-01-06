@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Background -->
+  <rect width="48" height="48" rx="8" fill="#1a1a1a"/>
+  
+  <!-- Grid pattern -->
+  <g stroke="#fff" stroke-width="1" opacity="0.6">
+    <path d="M6 6h36M6 18h36M6 30h36M6 42h36"/>
+    <path d="M6 6v36M18 6v36M30 6v36M42 6v36"/>
+  </g>
+  
+  <!-- Magnifying glass -->
+  <circle cx="24" cy="24" r="8" fill="none" stroke="#4CAF50" stroke-width="2"/>
+  <path d="M32 32l8 8" stroke="#4CAF50" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Border corners -->
+  <path d="M6 6l4 0M6 6l0 4" stroke="#4CAF50" stroke-width="2"/>
+  <path d="M42 6l-4 0M42 6l0 4" stroke="#4CAF50" stroke-width="2"/>
+  <path d="M6 42l4 0M6 42l0 -4" stroke="#4CAF50" stroke-width="2"/>
+  <path d="M42 42l-4 0M42 42l0 -4" stroke="#4CAF50" stroke-width="2"/>
+</svg>
