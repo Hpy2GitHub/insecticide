@@ -1,0 +1,44 @@
+/* Styles for the hover info panel */
+#pesticide-hover-info {
+  transition: all 0.2s ease;
+}
+
+#pesticide-hover-info:hover {
+  background: rgba(0, 0, 0, 0.95) !important;
+}
+
+/* Ensure pesticide borders have highest priority */
+*[style*="border"] {
+  border: inherit !important;
+}
+
+/* Make sure the hover panel is always on top */
+#pesticide-hover-info * {
+  pointer-events: auto;
+}
+/* Ensure pesticide borders are always on top */
+*[class*="pesticide-border-"] {
+  will-change: transform;
+  contain: layout style paint;
+}
+
+/* Make sure our active indicator is always visible */
+#pesticide-active-indicator {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.9; }
+  50% { opacity: 1; }
+  100% { opacity: 0.9; }
+}
+
+/* Ensure borders don't get hidden by other styles */
+* {
+  box-sizing: inherit !important;
+}
+
+/* Force borders to be visible */
+[style*="border"] {
+  border-style: solid !important;
+}

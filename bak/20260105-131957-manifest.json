@@ -1,0 +1,37 @@
+{
+  "manifest_version": 2,
+  "name": "Pesticide for Firefox",
+  "version": "1.0",
+  "description": "Outline all elements on the page to visualize layout",
+  
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  
+  "browser_action": {
+    "default_icon": {
+      "48": "icons/icon48.png"
+    },
+    "default_title": "Toggle Pesticide"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  
+  "web_accessible_resources": [
+    "styles.css"
+  ]
+}

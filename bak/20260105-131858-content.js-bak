@@ -1,0 +1,95 @@
+console.log("Pesticide content script loaded");
+
+let pesticideActive = false;
+let hoverInfoDiv = null;
+let currentHoverElement = null;
+let ctrlPressed = false;
+
+// Element type to color mapping (simplified for testing)
+const elementColors = {
+  'div': 'red',
+  'p': 'green',
+  'span': 'blue',
+  'a': 'orange',
+  'ul': 'purple',
+  'li': 'brown',
+  'h1': 'darkred',
+  'h2': 'darkgreen',
+  'h3': 'darkblue',
+  'img': 'cadetblue'
+};
+
+const defaultColor = 'gray';
+
+// Message listener - SIMPLIFIED FOR TESTING
+browser.runtime.onMessage.addListener((message) => {
+  console.log("Content script received message:", message);
+  
+  if (message.action === 'togglePesticide') {
+    if (message.isActive) {
+      activatePesticide();
+    } else {
+      deactivatePesticide();
+    }
+    return Promise.resolve({success: true});
+  }
+});
+
+// SIMPLIFIED activate function for testing
+function activatePesticide() {
+  console.log("Activating pesticide");
+  pesticideActive = true;
+  
+  // Just add borders to a few elements for testing
+  const testElements = document.querySelectorAll('div, p, a, h1, h2, h3, span');
+  console.log(`Found ${testElements.length} elements to outline`);
+  
+  testElements.forEach((element, index) => {
+    if (index < 50) { // Limit for testing
+      const tagName = element.tagName.toLowerCase();
+      const color = elementColors[tagName] || defaultColor;
+      element.style.outline = `1px solid ${color}`;
+      element.style.outlineOffset = '-1px'; // Make outline appear as border
+    }
+  });
+  
+  // Add a test indicator
+  const testIndicator = document.createElement('div');
+  testIndicator.textContent = 'Pesticide ACTIVE';
+  testIndicator.style.cssText = `
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: #4CAF50;
+    color: white;
+    padding: 5px 10px;
+    z-index: 999999;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    border-radius: 3px;
+  `;
+  testIndicator.id = 'pesticide-test-indicator';
+  document.body.appendChild(testIndicator);
+}
+
+function deactivatePesticide() {
+  console.log("Deactivating pesticide");
+  pesticideActive = false;
+  
+  // Remove borders
+  const testElements = document.querySelectorAll('div, p, a, h1, h2, h3, span');
+  testElements.forEach((element, index) => {
+    if (index < 50) {
+      element.style.outline = '';
+    }
+  });
+  
+  // Remove test indicator
+  const indicator = document.getElementById('pesticide-test-indicator');
+  if (indicator) {
+    indicator.remove();
+  }
+}
+
+// Send ready message
+console.log("Pesticide content script ready");

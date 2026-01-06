@@ -1,0 +1,47 @@
+let isActive = false;
+
+// Initialize from storage
+browser.storage.local.get(['pesticideActive']).then(result => {
+  isActive = result.pesticideActive || false;
+  updateIcon();
+});
+
+// Toggle extension on browser action click
+browser.browserAction.onClicked.addListener((tab) => {
+  isActive = !isActive;
+  
+  // Save state
+  browser.storage.local.set({ pesticideActive: isActive });
+  
+  // Update icon
+  updateIcon();
+  
+  // Send message to content script
+  browser.tabs.sendMessage(tab.id, {
+    action: 'togglePesticide',
+    isActive: isActive
+  });
+});
+
+// Update icon based on state
+function updateIcon() {
+  const iconPath = isActive ? {
+    48: 'icons/icon48-active.svg'
+  } : {
+    48: 'icons/icon48.svg'
+  };
+  
+  browser.browserAction.setIcon({ path: iconPath });
+}
+
+// Handle tab updates
+browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && isActive) {
+    browser.tabs.sendMessage(tabId, {
+      action: 'togglePesticide',
+      isActive: true
+    }).catch(() => {
+      // Tab might not be ready or content script not loaded
+    });
+  }
+});
