@@ -1,0 +1,2644 @@
+=============================
+ FILE: README.md
+=============================
+# Read Aloud - Chrome Extension
+
+A professional text-to-speech reader for web content with pause/resume functionality, now fully compatible with Manifest V3.
+
+## ✨ Features
+
+- 📖 Read entire web pages or selected text
+- ⏯️ Pause and resume functionality  
+- 🎚️ Adjustable voice, speed, pitch, and volume
+- 🎨 Text highlighting as it's being read
+- ⌨️ Keyboard shortcuts for quick access
+- 🔧 Comprehensive settings page
+- 💾 Persistent preferences across sessions
+
+## 🏗️ Architecture
+
+This extension uses **Manifest V3** with an **offscreen document** architecture to access the Web Speech API:
+
+- **background.js** (Service Worker): Manages state and coordinates between components
+- **offscreen.js** (Offscreen Document): Handles actual text-to-speech using Web Speech API
+- **content.js** (Content Script): Extracts text from web pages and handles highlighting
+- **popup.js**: User interface for controls
+- **options.js**: Settings management page
+
+## 📦 Installation
+
+### From Source (Development)
+
+1. Clone or download this repository
+2. Open Chrome and navigate to `chrome://extensions/`
+3. Enable "Developer mode" (toggle in top right corner)
+4. Click "Load unpacked"
+5. Select the extension folder containing `manifest.json`
+
+### File Structure
+
+```
+read-aloud-extension/
+├── manifest.json
+├── background.js
+├── offscreen.html
+├── offscreen.js
+├── content.js
+├── popup/
+│   ├── popup.html
+│   └── popup.js
+├── options/
+│   ├── options.html
+│   └── options.js
+├── icons/
+│   ├── icon16.png
+│   ├── icon48.png
+│   └── icon128.png
+└── README.md
+```
+
+## 🎯 Usage
+
+### Reading Web Pages
+
+1. Click the extension icon in your toolbar
+2. Choose your reading mode:
+   - **Read full page**: Reads all visible text on the page
+   - **Read article content only**: Attempts to read only the main article
+3. Adjust voice settings (voice, speed, pitch)
+4. Click "Read Page" to start
+
+### Reading Selected Text
+
+1. Select text on any web page
+2. Click the extension icon
+3. Click "Read Selected" button
+4. Or use the keyboard shortcut: `Ctrl+Shift+R` (Windows/Linux) or `Cmd+Shift+R` (Mac)
+
+### Playback Controls
+
+- **Play/Pause**: Click the pause button or press `Ctrl+Shift+S` (`Cmd+Shift+S` on Mac)
+- **Stop**: Click the stop button or press `Ctrl+Shift+X` (`Cmd+Shift+X` on Mac)
+- **Progress**: Watch the progress bar to see reading progress
+
+## ⌨️ Keyboard Shortcuts
+
+| Action | Windows/Linux | Mac |
+|--------|--------------|-----|
+| Toggle Play/Pause | `Ctrl+Shift+S` | `Cmd+Shift+S` |
+| Stop Reading | `Ctrl+Shift+X` | `Cmd+Shift+X` |
+| Read Selected Text | `Ctrl+Shift+R` | `Cmd+Shift+R` |
+
+To customize shortcuts: `chrome://extensions/shortcuts`
+
+## ⚙️ Settings
+
+Access the settings page by clicking the gear icon in the popup or right-clicking the extension icon and selecting "Options".
+
+### Voice Settings
+- **Preferred Voice**: Choose from available system voices
+- **Speaking Rate**: 0.5x to 2.0x speed
+- **Pitch**: Adjust voice pitch
+- **Volume**: Control playback volume
+
+### Reading Preferences
+- **Default Reading Mode**: Choose what to read by default
+- **Auto-read**: Start reading automatically when popup opens
+- **Text Highlighting**: Enable/disable highlighting of current text
+- **Continue Reading**: Continue on page navigation
+
+### Highlighting Settings
+- **Highlight Color**: Choose the color for text highlighting
+- **Preview**: See how highlighting will appear
+
+## 🔒 Permissions
+
+This extension requires the following permissions:
+
+- **activeTab**: Access the current tab for reading content
+- **scripting**: Inject content scripts for text extraction
+- **storage**: Save user preferences
+- **tabs**: Manage reading across tabs
+- **offscreen**: Create offscreen document for Web Speech API access
+
+## 🐛 Troubleshooting
+
+### No voices available
+- Ensure your system has text-to-speech voices installed
+- On Windows: Settings > Time & Language > Speech
+- On Mac: System Preferences > Accessibility > Spoken Content
+- On Linux: Install `espeak` or `festival`
+
+### Extension doesn't work on certain pages
+- Chrome extensions cannot run on:
+  - `chrome://` pages
+  - Chrome Web Store pages
+  - Other browser internal pages
+- This is a security restriction by Chrome
+
+### Text highlighting not working
+- Make sure highlighting is enabled in settings
+- Some websites may have CSS that conflicts with highlighting
+- Try refreshing the page and reading again
+
+### Reading stops unexpectedly
+- Check if the page has changed (some single-page apps reload content)
+- Try stopping and starting again
+- Check browser console for errors (F12 > Console)
+
+## 🛠️ Technical Details
+
+### Web Speech API
+This extension uses the browser's built-in Web Speech API, which provides:
+- Natural-sounding voices
+- Multiple language support
+- Real-time speech synthesis
+- No server-side processing required
+
+### Manifest V3 Compatibility
+The extension uses the latest Manifest V3 format with:
+- Service worker background script
+- Offscreen document for DOM APIs
+- Declarative content scripts
+- Chrome storage API for preferences
+
+## 📝 Known Limitations
+
+1. **Browser Dependency**: Requires Chrome/Chromium-based browsers
+2. **Voice Quality**: Depends on system-installed voices
+3. **Page Restrictions**: Cannot run on Chrome internal pages
+4. **Popup Closure**: Popup must remain open during reading (service worker limitation)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
+
+## 📄 License
+
+MIT License - feel free to use and modify as needed.
+
+## 🔄 Version History
+
+### v1.0.0
+- Initial release with Manifest V3
+- Offscreen document architecture
+- Full pause/resume support
+- Text highlighting
+- Keyboard shortcuts
+- Comprehensive settings page
+
+## 💡 Tips for Best Experience
+
+1. **Use quality voices**: Install high-quality TTS voices on your system
+2. **Adjust speed**: Most people prefer 1.2x to 1.5x reading speed
+3. **Use article mode**: For better accuracy on news sites and blogs
+4. **Save preferences**: Your settings are automatically saved
+5. **Keyboard shortcuts**: Learn the shortcuts for faster workflow
+
+## 🆘 Support
+
+For issues, questions, or suggestions:
+- Open an issue on GitHub
+- Check the troubleshooting section above
+- Review Chrome extension documentation
+
+---
+
+**Enjoy hands-free reading! 📖🔊**
+=============================
+ FILE: background.js
+=============================
+// Background service worker for Read Aloud extension
+// Manifest V3 implementation with offscreen document for Web Speech API
+
+class ReadAloudEngine {
+    constructor() {
+        this.isReading = false;
+        this.isPaused = false;
+        this.offscreenDocumentReady = false;
+        this.preferences = {
+            voice: null,
+            rate: 1,
+            pitch: 1,
+            volume: 1,
+            readingMode: 'fullPage',
+            autoRead: false,
+            highlightText: true,
+            continueReading: false,
+            highlightColor: '#fff9c4'
+        };
+        this.currentReadingSession = {
+            text: null,
+            sourceUrl: null,
+            startTime: null,
+            position: 0
+        };
+        this.init();
+    }
+
+    async init() {
+        await this.loadPreferences();
+        this.setupMessageListeners();
+        this.setupCommands();
+        this.setupTabListeners();
+        console.log('Read Aloud engine initialized');
+    }
+
+    async loadPreferences() {
+        try {
+            const result = await chrome.storage.sync.get('readAloudPreferences');
+            if (result.readAloudPreferences) {
+                this.preferences = { ...this.preferences, ...result.readAloudPreferences };
+                console.log('Preferences loaded:', this.preferences);
+            }
+        } catch (error) {
+            console.error('Failed to load preferences:', error);
+        }
+    }
+
+    setupMessageListeners() {
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            console.log('Background received message:', request.action);
+            
+            switch (request.action) {
+                case 'startReading':
+                    this.startReading(request.text);
+                    sendResponse({ success: true });
+                    break;
+                    
+                case 'pauseReading':
+                    this.pauseReading();
+                    sendResponse({ success: true });
+                    break;
+                    
+                case 'resumeReading':
+                    this.resumeReading();
+                    sendResponse({ success: true });
+                    break;
+                    
+                case 'stopReading':
+                    this.stopReading();
+                    sendResponse({ success: true });
+                    break;
+                    
+                case 'getStatus':
+                    sendResponse({
+                        isReading: this.isReading,
+                        isPaused: this.isPaused,
+                        preferences: this.preferences
+                    });
+                    return true;
+                    
+                case 'updatePreferences':
+                    this.updatePreferences(request.preferences);
+                    sendResponse({ success: true });
+                    break;
+                    
+                case 'getPreferences':
+                    sendResponse({ preferences: this.preferences });
+                    return true;
+                    
+                case 'getVoices':
+                    // Forward to offscreen document
+                    this.getVoices().then(voices => {
+                        sendResponse({ voices: voices });
+                    }).catch(err => {
+                        console.error('Failed to get voices:', err);
+                        sendResponse({ voices: [] });
+                    });
+                    return true; // Will respond asynchronously
+                    
+                case 'speechEvent':
+                    this.handleSpeechEvent(request.event, request.data);
+                    break;
+            }
+            
+            return true;
+        });
+    }
+
+    async getVoices() {
+        try {
+            await this.ensureOffscreenDocument();
+            
+            return new Promise((resolve, reject) => {
+                chrome.runtime.sendMessage(
+                    { action: 'getVoices' },
+                    (response) => {
+                        if (chrome.runtime.lastError) {
+                            reject(chrome.runtime.lastError);
+                        } else if (response && response.voices) {
+                            resolve(response.voices);
+                        } else {
+                            resolve([]);
+                        }
+                    }
+                );
+            });
+        } catch (error) {
+            console.error('Error getting voices:', error);
+            return [];
+        }
+    }
+
+    async ensureOffscreenDocument() {
+        // Check if offscreen document exists
+        const existingContexts = await chrome.runtime.getContexts({
+            contextTypes: ['OFFSCREEN_DOCUMENT']
+        });
+
+        if (existingContexts.length > 0) {
+            console.log('Offscreen document already exists');
+            this.offscreenDocumentReady = true;
+            return;
+        }
+
+        // Create offscreen document
+        console.log('Creating offscreen document...');
+        await chrome.offscreen.createDocument({
+            url: 'offscreen.html',
+            reasons: ['USER_MEDIA'], // closest match for audio output
+            justification: 'Text-to-speech requires Web Speech API access'
+        });
+        
+        // Give it a moment to initialize
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        this.offscreenDocumentReady = true;
+        console.log('Offscreen document created');
+    }
+
+    async startReading(text) {
+        console.log('Starting to read text...');
+        
+        if (this.isReading) {
+            await this.stopReading();
+        }
+
+        await this.ensureOffscreenDocument();
+
+        this.currentReadingSession.text = text;
+        this.currentReadingSession.position = 0;
+        this.currentReadingSession.startTime = Date.now();
+        this.isReading = true;
+        this.isPaused = false;
+        
+        // Prepare highlighting in content script
+        this.sendToActiveTab({ action: 'prepareHighlighting' });
+        
+        // Send to offscreen document to start speaking
+        chrome.runtime.sendMessage({
+            action: 'speak',
+            text: text,
+            preferences: this.preferences,
+            startPosition: 0
+        }).catch(err => console.error('Failed to send speak message:', err));
+        
+        this.updateStatus();
+    }
+
+    async pauseReading() {
+        if (this.isReading && !this.isPaused) {
+            console.log('Pausing reading...');
+            
+            chrome.runtime.sendMessage({
+                action: 'pause'
+            }).catch(err => console.error('Failed to send pause message:', err));
+            
+            this.isPaused = true;
+            this.updateStatus();
+        }
+    }
+
+    async resumeReading() {
+        if (this.isReading && this.isPaused) {
+            console.log('Resuming reading...');
+            
+            chrome.runtime.sendMessage({
+                action: 'resume'
+            }).catch(err => console.error('Failed to send resume message:', err));
+            
+            this.isPaused = false;
+            this.updateStatus();
+        }
+    }
+
+    async stopReading() {
+        if (this.isReading) {
+            console.log('Stopping reading...');
+            
+            chrome.runtime.sendMessage({
+                action: 'stop'
+            }).catch(err => console.error('Failed to send stop message:', err));
+            
+            this.isReading = false;
+            this.isPaused = false;
+            this.currentReadingSession.position = 0;
+            
+            // Clear highlighting
+            this.sendToActiveTab({ action: 'clearHighlight' });
+            
+            this.updateStatus();
+        }
+    }
+
+    handleSpeechEvent(event, data) {
+        console.log('Speech event:', event, data);
+        
+        switch (event) {
+            case 'started':
+                this.isReading = true;
+                this.isPaused = false;
+                this.updateStatus();
+                break;
+                
+            case 'ended':
+                this.isReading = false;
+                this.isPaused = false;
+                this.sendToActiveTab({ action: 'clearHighlight' });
+                this.updateStatus();
+                break;
+                
+            case 'paused':
+                this.isPaused = true;
+                this.updateStatus();
+                break;
+                
+            case 'resumed':
+                this.isPaused = false;
+                this.updateStatus();
+                break;
+                
+            case 'boundary':
+                if (data.position !== undefined) {
+                    this.currentReadingSession.position = data.position;
+                    
+                    // Send highlight update to content script
+                    this.sendToActiveTab({
+                        action: 'highlightTextProgressive',
+                        position: data.position,
+                        rate: data.rate || 1
+                    });
+                }
+                break;
+                
+            case 'error':
+                console.error('Speech error:', data.error);
+                this.isReading = false;
+                this.isPaused = false;
+                this.updateStatus();
+                break;
+        }
+    }
+
+    updateStatus() {
+        chrome.runtime.sendMessage({
+            action: 'statusUpdate',
+            status: {
+                isReading: this.isReading,
+                isPaused: this.isPaused,
+                preferences: this.preferences
+            }
+        }).catch(() => {
+            // Popup might be closed, that's ok
+        });
+    }
+
+    updatePreferences(newPreferences) {
+        this.preferences = { ...this.preferences, ...newPreferences };
+        chrome.storage.sync.set({ readAloudPreferences: this.preferences });
+        console.log('Preferences updated:', this.preferences);
+    }
+
+    async sendToActiveTab(message) {
+        try {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs.length > 0) {
+                chrome.tabs.sendMessage(tabs[0].id, message).catch(err => {
+                    console.log('Could not send to content script:', err.message);
+                });
+            }
+        } catch (error) {
+            console.error('Error sending to active tab:', error);
+        }
+    }
+
+    setupCommands() {
+        chrome.commands.onCommand.addListener((command) => {
+            console.log('Command received:', command);
+            
+            switch (command) {
+                case 'toggle-play':
+                    if (this.isReading) {
+                        if (this.isPaused) {
+                            this.resumeReading();
+                        } else {
+                            this.pauseReading();
+                        }
+                    }
+                    break;
+                    
+                case 'stop':
+                    this.stopReading();
+                    break;
+                    
+                case 'read-selected':
+                    this.handleReadSelected();
+                    break;
+            }
+        });
+    }
+
+    async handleReadSelected() {
+        try {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs.length > 0) {
+                chrome.tabs.sendMessage(
+                    tabs[0].id,
+                    { action: 'getSelectedText' },
+                    (response) => {
+                        if (response && response.success && response.text) {
+                            this.startReading(response.text);
+                        }
+                    }
+                );
+            }
+        } catch (error) {
+            console.error('Error reading selected text:', error);
+        }
+    }
+
+    setupTabListeners() {
+        chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+            if (changeInfo.status === 'complete' && this.preferences.continueReading && this.isReading) {
+                console.log('Tab updated, continuing reading if enabled');
+            }
+        });
+    }
+}
+
+// Initialize the engine
+const readAloudEngine = new ReadAloudEngine();
+
+// Handle extension installation
+chrome.runtime.onInstalled.addListener(() => {
+    console.log('Read Aloud extension installed');
+});
+
+// Handle storage changes
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync' && changes.readAloudPreferences) {
+        readAloudEngine.preferences = {
+            ...readAloudEngine.preferences,
+            ...changes.readAloudPreferences.newValue
+        };
+        console.log('Preferences updated from storage');
+    }
+});
+=============================
+ FILE: concat.sh
+=============================
+#!/usr/bin/bash
+files="README.md background.js concat.sh content.js manifest.json mk_crx.sh mk_icons.sh mk_xpi.sh offscreen.html offscreen.js options/options.html options/options.js popup/popup.html popup/popup.js"
+output_file=$rhd/project-contents.txt
+>$output_file
+for i in $files
+do
+	echo "============================="
+	echo " FILE: $i"
+	echo "============================="
+	cat $i
+done >>$output_file
+echo "=============================" >>$output_file
+echo " ls ./icons/" >>$output_file
+echo "=============================" >>$output_file
+cd icons
+ls -1 * | grep -v sh$ >>$output_file
+
+=============================
+ FILE: content.js
+=============================
+// Content script for Read Aloud extension
+console.log('Read Aloud content script initialized');
+
+(function() {
+    let isHighlightingEnabled = true;
+    let highlightColor = '#fff9c4';
+    let currentHighlightElement = null;
+    let paragraphRanges = [];
+
+    init();
+
+    function init() {
+        setupMessageListeners();
+        requestPreferences();
+        setupMutationObserver();
+        console.log('Content script ready');
+    }
+
+    function setupMessageListeners() {
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            console.log('Content received:', request.action);
+            
+            try {
+                switch (request.action) {
+                    case 'extractText':
+                        const content = extractContent(request.option);
+                        sendResponse({
+                            success: true,
+                            text: content,
+                            url: window.location.href,
+                            title: document.title
+                        });
+                        break;
+                        
+                    case 'getSelectedText':
+                        const selectedText = getSelectedText();
+                        sendResponse({
+                            success: !!selectedText,
+                            text: selectedText,
+                            url: window.location.href,
+                            title: document.title
+                        });
+                        break;
+                        
+                    case 'highlightTextProgressive':
+                        if (request.position !== undefined) {
+                            highlightTextWithPrediction(request.position, request.rate || 1);
+                            sendResponse({ success: true });
+                        } else {
+                            sendResponse({ success: false, error: 'No position provided' });
+                        }
+                        break;
+                        
+                    case 'clearHighlight':
+                        clearHighlight();
+                        sendResponse({ success: true });
+                        break;
+                        
+                    case 'prepareHighlighting':
+                        prepareTextForHighlighting();
+                        sendResponse({
+                            success: true,
+                            totalParagraphs: paragraphRanges.length
+                        });
+                        break;
+                        
+                    case 'statusUpdate':
+                        if (request.status && request.status.preferences) {
+                            updatePreferences(request.status.preferences);
+                        }
+                        sendResponse({ success: true });
+                        break;
+                        
+                    default:
+                        sendResponse({ success: false, error: 'Unknown action' });
+                }
+            } catch (error) {
+                console.error('Content error:', error);
+                sendResponse({ success: false, error: error.message });
+            }
+            
+            return true;
+        });
+    }
+
+    function requestPreferences() {
+        chrome.runtime.sendMessage({ action: 'getPreferences' }, (response) => {
+            if (response && response.preferences) {
+                updatePreferences(response.preferences);
+            }
+        });
+    }
+
+    function updatePreferences(preferences) {
+        isHighlightingEnabled = preferences.highlightText !== false;
+        highlightColor = preferences.highlightColor || '#fff9c4';
+        
+        if (currentHighlightElement) {
+            currentHighlightElement.style.backgroundColor = highlightColor;
+        }
+    }
+
+    function setupMutationObserver() {
+        const observer = new MutationObserver((mutations) => {
+            let shouldUpdate = false;
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    shouldUpdate = true;
+                    break;
+                }
+            }
+            
+            if (shouldUpdate) {
+                prepareTextForHighlighting();
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    function extractContent(option = 'fullPage') {
+        let content = '';
+        
+        switch (option) {
+            case 'articleOnly':
+                content = extractArticleContent();
+                break;
+            case 'selectedText':
+                content = getSelectedText() || extractArticleContent();
+                break;
+            case 'fullPage':
+            default:
+                content = extractMainContent();
+                break;
+        }
+
+        return cleanText(content);
+    }
+
+    function extractArticleContent() {
+        const selectors = [
+            'article',
+            '[role="main"]',
+            'main',
+            '[itemprop="articleBody"]',
+            '.post-content',
+            '.article-content',
+            '.entry-content',
+            '.content',
+            '.main-content',
+            '#content'
+        ];
+
+        for (const selector of selectors) {
+            const element = document.querySelector(selector);
+            if (element) {
+                return element.textContent;
+            }
+        }
+
+        return extractMainContent();
+    }
+
+    function extractMainContent() {
+        const nonContentSelectors = [
+            'nav', 'header', 'footer', 'aside', 'form', 'script', 
+            'style', 'noscript', 'iframe', 'object', 'embed'
+        ];
+
+        const bodyClone = document.body.cloneNode(true);
+
+        nonContentSelectors.forEach(selector => {
+            const elements = bodyClone.querySelectorAll(selector);
+            elements.forEach(el => el.remove());
+        });
+
+        const nonContentClasses = [
+            'nav', 'navbar', 'menu', 'sidebar', 'ad', 'advertisement', 
+            'ads', 'comments', 'share', 'social', 'newsletter', 'subscribe'
+        ];
+
+        nonContentClasses.forEach(className => {
+            const elements = bodyClone.querySelectorAll(`.${className}`);
+            elements.forEach(el => el.remove());
+        });
+
+        return bodyClone.textContent;
+    }
+
+    function cleanText(text) {
+        if (!text) return '';
+        
+        return text
+            .replace(/\s+/g, ' ')
+            .replace(/\n+/g, '\n')
+            .replace(/\s\./g, '.')
+            .trim();
+    }
+
+    function getSelectedText() {
+        const selection = window.getSelection();
+        if (!selection || selection.toString().trim().length === 0) {
+            return null;
+        }
+        
+        return cleanText(selection.toString());
+    }
+
+    function prepareTextForHighlighting() {
+        if (!isHighlightingEnabled) {
+            return;
+        }
+        
+        paragraphRanges = [];
+        
+        const paragraphSelectors = [
+            'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+            'li', 'blockquote', 'pre', 'article > *', 'section > *'
+        ];
+        
+        let currentGlobalCharIndex = 0;
+        const paragraphElements = Array.from(document.querySelectorAll(paragraphSelectors.join(', ')));
+        
+        for (const element of paragraphElements) {
+            if (!element.textContent.trim() || 
+                element.style.display === 'none' || 
+                element.hidden ||
+                element.tagName === 'SCRIPT' ||
+                element.tagName === 'STYLE') {
+                continue;
+            }
+            
+            const isChildOfParagraph = paragraphElements.some(parent => 
+                parent !== element && parent.contains(element)
+            );
+            if (isChildOfParagraph) continue;
+            
+            const text = element.textContent.trim();
+            if (text.length > 0) {
+                const range = document.createRange();
+                range.selectNodeContents(element);
+                
+                paragraphRanges.push({
+                    range: range,
+                    element: element,
+                    startCharIndex: currentGlobalCharIndex,
+                    endCharIndex: currentGlobalCharIndex + text.length,
+                    text: text
+                });
+                
+                currentGlobalCharIndex += text.length + 1;
+            }
+        }
+        
+        console.log(`Prepared ${paragraphRanges.length} paragraphs for highlighting`);
+    }
+
+    function highlightTextWithPrediction(charIndex, speechRate) {
+        if (!isHighlightingEnabled) {
+            return;
+        }
+        
+        if (paragraphRanges.length === 0) {
+            prepareTextForHighlighting();
+        }
+        
+        const currentParagraphInfo = paragraphRanges.find(info => {
+            return charIndex >= info.startCharIndex && charIndex < info.endCharIndex;
+        });
+        
+        if (!currentParagraphInfo) {
+            return;
+        }
+        
+        const paragraphProgress = (charIndex - currentParagraphInfo.startCharIndex) / 
+                                 (currentParagraphInfo.endCharIndex - currentParagraphInfo.startCharIndex);
+        
+        if (paragraphProgress >= 0.15) {
+            clearHighlight();
+            
+            const element = currentParagraphInfo.element;
+            element.style.backgroundColor = highlightColor;
+            element.style.transition = 'background-color 0.3s ease';
+            element.classList.add('read-aloud-highlight');
+            
+            currentHighlightElement = element;
+            
+            element.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+                inline: 'nearest'
+            });
+        }
+    }
+
+    function clearHighlight() {
+        if (currentHighlightElement) {
+            currentHighlightElement.style.backgroundColor = '';
+            currentHighlightElement.classList.remove('read-aloud-highlight');
+            currentHighlightElement = null;
+        }
+    }
+
+    document.addEventListener('selectionchange', () => {
+        const selectedText = getSelectedText();
+        if (selectedText) {
+            chrome.runtime.sendMessage({
+                action: 'textSelected',
+                text: selectedText
+            }).catch(() => {
+                // Background might not be ready
+            });
+        }
+    });
+
+})();
+=============================
+ FILE: manifest.json
+=============================
+{
+  "manifest_version": 3,
+  "name": "My Read Aloud",
+  "version": "1.0.0",
+  "description": "A text-to-speech reader for web content",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs",
+    "offscreen"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Read Aloud"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "toggle-play": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Toggle play/pause reading"
+    },
+    "stop": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+X",
+        "mac": "Command+Shift+X"
+      },
+      "description": "Stop reading"
+    },
+    "read-selected": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+R",
+        "mac": "Command+Shift+R"
+      },
+      "description": "Read selected text"
+    }
+  }
+}
+=============================
+ FILE: mk_crx.sh
+=============================
+#!/usr/bin/bash
+# Chrome extension packaging script
+
+# Create temp directory
+mkdir -p chrome_build
+
+# Copy all necessary files
+cp -r icons chrome_build/
+cp -r options chrome_build/
+cp -r popup chrome_build/
+cp background.js chrome_build/
+cp content.js chrome_build/
+cp manifest.json chrome_build/
+
+# Remove Firefox-specific files
+rm -f chrome_build/mk_xpi.sh chrome_build/mk_icons.sh chrome_build/concat.sh 2>/dev/null
+
+# Create zip file for Chrome Web Store
+cd chrome_build
+zip -r ../read-aloud-chrome.zip . -x '*.sh' '*.xpi'
+
+# Create .crx if you have private key (optional)
+# if [ -f ../key.pem ]; then
+#     chrome --pack-extension=. --pack-extension-key=../key.pem
+#     mv .crx ../read-aloud-chrome.crx
+# fi
+
+cd ..
+echo "Chrome extension built:"
+echo "  - Web Store ZIP: read-aloud-chrome.zip"
+echo "  - Unpacked folder: chrome_build/"
+=============================
+ FILE: mk_icons.sh
+=============================
+#!/usr/bin/bash
+mkdir -p icons
+convert -size 128x128 xc:none -fill "#4285f4" -draw "roundrectangle 0,0 128,128 20,20"   -fill white -draw "polygon 40,40 60,30 60,50 80,40 60,70 60,90 40,80 20,90 20,70 40,60 20,50 20,30"   icons/icon128.png
+convert -size 48x48 xc:none -fill "#4285f4" -draw "roundrectangle 0,0 48,48 8,8"   -fill white -draw "polygon 15,15 23,11 23,19 31,15 23,26 23,34 15,30 7,34 7,26 15,22 7,19 7,11"   icons/icon48.png
+convert -size 16x16 xc:"#4285f4" -fill white -draw "text 4,12 'R'" icons/icon16.png
+=============================
+ FILE: mk_xpi.sh
+=============================
+#!/usr/bin/bash
+if [ -f myt2s.xpi ] 
+then
+    echo rm myt2s.xpi
+    rm myt2s.xpi
+fi
+echo zip -r myt2s.xpi *
+zip -r myt2s.xpi . -x 'bak/*' -x '*/bak/*' -x '*.sh' -x '*.xpi'
+#zip  myt2s.xpi manifest.json background.js content.js icons/* options/* popup/*
+ls -ald myt2s.xpi
+
+=============================
+ FILE: offscreen.html
+=============================
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Read Aloud Offscreen Document</title>
+</head>
+<body>
+    <script src="offscreen.js"></script>
+</body>
+</html>
+=============================
+ FILE: offscreen.js
+=============================
+// Offscreen document for Web Speech API access
+console.log('Read Aloud offscreen document loaded');
+
+let currentUtterance = null;
+let isReading = false;
+let isPaused = false;
+let currentText = '';
+let currentPosition = 0;
+let startPosition = 0;
+
+// Listen for messages from the service worker
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log('Offscreen received message:', message.action);
+    
+    switch (message.action) {
+        case 'speak':
+            speak(message.text, message.preferences, message.startPosition || 0);
+            sendResponse({ success: true });
+            break;
+            
+        case 'pause':
+            pause();
+            sendResponse({ success: true });
+            break;
+            
+        case 'resume':
+            resume();
+            sendResponse({ success: true });
+            break;
+            
+        case 'stop':
+            stop();
+            sendResponse({ success: true });
+            break;
+            
+        case 'getVoices':
+            const voices = speechSynthesis.getVoices();
+            sendResponse({ voices: voices.map(v => ({ name: v.name, lang: v.lang })) });
+            break;
+            
+        case 'getStatus':
+            sendResponse({ 
+                isReading: isReading, 
+                isPaused: isPaused,
+                position: currentPosition
+            });
+            break;
+    }
+    
+    return true;
+});
+
+// Speak the text with given preferences
+function speak(text, preferences, startPos = 0) {
+    console.log('Offscreen: Starting to speak from position', startPos);
+    
+    // Stop any current speech
+    stop();
+    
+    currentText = text;
+    startPosition = startPos;
+    currentPosition = startPos;
+    isReading = true;
+    isPaused = false;
+    
+    // Create utterance
+    currentUtterance = new SpeechSynthesisUtterance(text);
+    
+    // Set voice if specified
+    if (preferences.voice) {
+        const voices = speechSynthesis.getVoices();
+        const selectedVoice = voices.find(v => v.name === preferences.voice);
+        if (selectedVoice) {
+            currentUtterance.voice = selectedVoice;
+        }
+    }
+    
+    // Set speech parameters
+    currentUtterance.rate = preferences.rate || 1;
+    currentUtterance.pitch = preferences.pitch || 1;
+    currentUtterance.volume = preferences.volume || 1;
+    
+    // Event handlers
+    currentUtterance.onstart = () => {
+        console.log('Offscreen: Speech started');
+        notifyBackgroundScript('started');
+    };
+    
+    currentUtterance.onend = () => {
+        console.log('Offscreen: Speech ended');
+        isReading = false;
+        isPaused = false;
+        currentPosition = 0;
+        notifyBackgroundScript('ended');
+    };
+    
+    currentUtterance.onerror = (event) => {
+        console.error('Offscreen: Speech error:', event.error);
+        isReading = false;
+        isPaused = false;
+        notifyBackgroundScript('error', { error: event.error });
+    };
+    
+    currentUtterance.onpause = () => {
+        console.log('Offscreen: Speech paused');
+        isPaused = true;
+        notifyBackgroundScript('paused');
+    };
+    
+    currentUtterance.onresume = () => {
+        console.log('Offscreen: Speech resumed');
+        isPaused = false;
+        notifyBackgroundScript('resumed');
+    };
+    
+    currentUtterance.onboundary = (event) => {
+        if (event.name === 'word') {
+            currentPosition = startPosition + event.charIndex;
+            notifyBackgroundScript('boundary', { 
+                position: currentPosition,
+                charIndex: event.charIndex,
+                rate: preferences.rate || 1
+            });
+        }
+    };
+    
+    // Start speaking
+    speechSynthesis.speak(currentUtterance);
+    
+    // Chrome bug workaround: keep speech synthesis alive
+    startKeepAliveTimer();
+}
+
+// Pause speech
+function pause() {
+    if (isReading && !isPaused) {
+        console.log('Offscreen: Pausing speech');
+        speechSynthesis.pause();
+        isPaused = true;
+        stopKeepAliveTimer();
+    }
+}
+
+// Resume speech
+function resume() {
+    if (isReading && isPaused) {
+        console.log('Offscreen: Resuming speech');
+        speechSynthesis.resume();
+        isPaused = false;
+        startKeepAliveTimer();
+    }
+}
+
+// Stop speech
+function stop() {
+    console.log('Offscreen: Stopping speech');
+    speechSynthesis.cancel();
+    stopKeepAliveTimer();
+    isReading = false;
+    isPaused = false;
+    currentUtterance = null;
+    currentPosition = 0;
+}
+
+// Notify background script of events
+function notifyBackgroundScript(event, data = {}) {
+    chrome.runtime.sendMessage({
+        action: 'speechEvent',
+        event: event,
+        data: data
+    }).catch(err => {
+        console.log('Could not send message to background:', err);
+    });
+}
+
+// Keep-alive timer to prevent Chrome from stopping speech
+let keepAliveTimer = null;
+
+function startKeepAliveTimer() {
+    stopKeepAliveTimer();
+    keepAliveTimer = setInterval(() => {
+        if (speechSynthesis.speaking && !speechSynthesis.paused) {
+            speechSynthesis.resume();
+        }
+    }, 5000);
+}
+
+function stopKeepAliveTimer() {
+    if (keepAliveTimer) {
+        clearInterval(keepAliveTimer);
+        keepAliveTimer = null;
+    }
+}
+
+// Load voices when available
+if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = () => {
+        console.log('Offscreen: Voices loaded');
+    };
+}
+=============================
+ FILE: options/options.html
+=============================
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options - Read Aloud Extension</title>
+    <style>
+        :root {
+            --primary: #4285f4;
+            --primary-dark: #3367d6;
+            --secondary: #34a853;
+            --accent: #ea4335;
+            --light: #f8f9fa;
+            --dark: #202124;
+            --gray: #5f6368;
+            --border: #dadce0;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: var(--gray);
+            font-size: 18px;
+        }
+        
+        .options-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            color: var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--dark);
+        }
+        
+        .form-help {
+            font-size: 13px;
+            color: var(--gray);
+            margin-top: 5px;
+        }
+        
+        select, input[type="text"], input[type="number"], input[type="color"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 8px;
+        }
+        
+        input[type="range"] {
+            flex-grow: 1;
+        }
+        
+        .slider-value {
+            min-width: 40px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .checkbox-group label {
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .shortcut-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        
+        .shortcut-label {
+            min-width: 150px;
+            font-weight: 500;
+        }
+        
+        .shortcut-key {
+            padding: 6px 12px;
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-family: monospace;
+            min-width: 100px;
+            text-align: center;
+        }
+        
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #2c9440;
+        }
+        
+        .btn-accent {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .btn-accent:hover {
+            background: #d32f2f;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: var(--secondary);
+            color: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .radio-group {
+            margin-bottom: 12px;
+        }
+        
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .radio-group input[type="radio"] {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .text-preview {
+            padding: 15px;
+            background: var(--light);
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: var(--gray);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Read Aloud Extension</h1>
+        <p class="subtitle">Customize your reading experience</p>
+    </header>
+    
+    <div class="options-container">
+        <div class="section">
+            <h2 class="section-title">
+                <span>🔊</span> Voice Settings
+            </h2>
+            
+            <div class="form-group">
+                <label class="form-label" for="voiceSelect">Preferred Voice</label>
+                <select id="voiceSelect">
+                    <option value="">Loading voices...</option>
+                </select>
+                <p class="form-help">Select your preferred voice for reading content</p>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Speaking Rate</label>
+                <div class="slider-container">
+                    <input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1">
+                    <span class="slider-value" id="rateValue">1.0</span>
+                </div>
+                <p class="form-help">Adjust how fast the voice speaks</p>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Pitch</label>
+                <div class="slider-container">
+                    <input type="range" id="pitchSlider" min="0.5" max="2" step="0.1" value="1">
+                    <span class="slider-value" id="pitchValue">1.0</span>
+                </div>
+                <p class="form-help">Adjust the pitch of the voice</p>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Volume</label>
+                <div class="slider-container">
+                    <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="1">
+                    <span class="slider-value" id="volumeValue">1.0</span>
+                </div>
+                <p class="form-help">Adjust the volume of the voice</p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2 class="section-title">
+                <span>⚡</span> Keyboard Shortcuts
+            </h2>
+            
+            <div class="shortcut-input">
+                <span class="shortcut-label">Toggle Play/Pause:</span>
+                <span class="shortcut-key" id="playPauseShortcut">Ctrl+Shift+S</span>
+                <button class="btn" id="changePlayPause">Change</button>
+            </div>
+            
+            <div class="shortcut-input">
+                <span class="shortcut-label">Stop Reading:</span>
+                <span class="shortcut-key" id="stopShortcut">Ctrl+Shift+X</span>
+                <button class="btn" id="changeStop">Change</button>
+            </div>
+            
+            <div class="shortcut-input">
+                <span class="shortcut-label">Read Selected Text:</span>
+                <span class="shortcut-key" id="readSelectedShortcut">Ctrl+Shift+R</span>
+                <button class="btn" id="changeReadSelected">Change</button>
+            </div>
+            
+            <p class="form-help">Click "Change" and then press the new key combination to set a shortcut</p>
+        </div>
+        
+        <div class="section">
+            <h2 class="section-title">
+                <span>📝</span> Reading Preferences
+            </h2>
+            
+            <div class="form-group">
+                <label class="form-label">Default Reading Mode</label>
+                
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="readingMode" value="fullPage" checked>
+                        Read full page content
+                    </label>
+                </div>
+                
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="readingMode" value="articleOnly">
+                        Read article content only
+                    </label>
+                </div>
+                
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="readingMode" value="selectedText">
+                        Read selected text only
+                    </label>
+                </div>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" id="autoRead">
+                <label for="autoRead">Automatically start reading when opening the popup</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" id="highlightText">
+                <label for="highlightText">Highlight text as it's being read</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" id="continueReading">
+                <label for="continueReading">Continue reading when moving to next page</label>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2 class="section-title">
+                <span>🎨</span> Highlighting Settings
+            </h2>
+            
+            <div class="form-group">
+                <label class="form-label" for="highlightColor">Highlight Color</label>
+                <input type="color" id="highlightColor" value="#fff9c4">
+                <p class="form-help">Color used to highlight text as it's being read</p>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Highlight Preview</label>
+                <div class="text-preview">
+                    This is how <span id="highlightPreview" style="background-color: #fff9c4;">highlighted text</span> will appear on the page.
+                </div>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <button class="btn btn-primary" id="saveBtn">
+                <span>💾</span> Save Settings
+            </button>
+            <button class="btn btn-secondary" id="resetBtn">
+                <span>🔄</span> Reset to Defaults
+            </button>
+            <button class="btn btn-accent" id="testBtn">
+                <span>🔊</span> Test Voice
+            </button>
+        </div>
+    </div>
+    
+    <footer>
+        <p>Read Aloud Extension v1.0 | Your personal reading assistant</p>
+    </footer>
+
+    <div class="notification" id="notification">Settings saved successfully!</div>
+
+    <script src="options.js"></script>
+</body>
+</html>
+=============================
+ FILE: options/options.js
+=============================
+document.addEventListener('DOMContentLoaded', function() {
+    const voiceSelect = document.getElementById('voiceSelect');
+    const rateSlider = document.getElementById('rateSlider');
+    const rateValue = document.getElementById('rateValue');
+    const pitchSlider = document.getElementById('pitchSlider');
+    const pitchValue = document.getElementById('pitchValue');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const volumeValue = document.getElementById('volumeValue');
+    const highlightColor = document.getElementById('highlightColor');
+    const highlightPreview = document.getElementById('highlightPreview');
+    const saveBtn = document.getElementById('saveBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const testBtn = document.getElementById('testBtn');
+    const notification = document.getElementById('notification');
+    
+    let voices = [];
+    let testUtterance = null;
+    
+    init();
+    
+    function init() {
+        loadVoices();
+        loadSettings();
+        setupEventListeners();
+    }
+    
+    function loadVoices() {
+        // Request voices from background (which will get them from offscreen)
+        chrome.runtime.sendMessage({ action: 'getVoices' }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error('Error getting voices:', chrome.runtime.lastError);
+                // Retry after a delay
+                setTimeout(loadVoices, 1000);
+                return;
+            }
+            
+            if (response && response.voices && response.voices.length > 0) {
+                voices = response.voices;
+                populateVoiceSelect();
+            } else {
+                // Voices not ready yet, retry
+                console.log('Voices not ready, retrying...');
+                setTimeout(loadVoices, 500);
+            }
+        });
+    }
+    
+    function populateVoiceSelect() {
+        voiceSelect.innerHTML = '';
+        
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Default Voice';
+        voiceSelect.appendChild(defaultOption);
+        
+        voices.forEach(voice => {
+            const option = document.createElement('option');
+            option.value = voice.name;
+            option.textContent = `${voice.name} (${voice.lang})`;
+            voiceSelect.appendChild(option);
+        });
+        
+        // Load saved voice preference
+        chrome.storage.sync.get('readAloudPreferences', function(data) {
+            if (data.readAloudPreferences && data.readAloudPreferences.voice) {
+                voiceSelect.value = data.readAloudPreferences.voice;
+            }
+        });
+        
+        console.log(`Loaded ${voices.length} voices`);
+    }
+    
+    function loadSettings() {
+        chrome.storage.sync.get('readAloudPreferences', function(data) {
+            if (data.readAloudPreferences) {
+                if (data.readAloudPreferences.rate) {
+                    rateSlider.value = data.readAloudPreferences.rate;
+                    rateValue.textContent = data.readAloudPreferences.rate;
+                }
+                if (data.readAloudPreferences.pitch) {
+                    pitchSlider.value = data.readAloudPreferences.pitch;
+                    pitchValue.textContent = data.readAloudPreferences.pitch;
+                }
+                if (data.readAloudPreferences.volume) {
+                    volumeSlider.value = data.readAloudPreferences.volume;
+                    volumeValue.textContent = data.readAloudPreferences.volume;
+                }
+                if (data.readAloudPreferences.voice) {
+                    voiceSelect.value = data.readAloudPreferences.voice;
+                }
+                
+                if (data.readAloudPreferences.readingMode) {
+                    const radioBtn = document.querySelector(`input[name="readingMode"][value="${data.readAloudPreferences.readingMode}"]`);
+                    if (radioBtn) radioBtn.checked = true;
+                }
+                if (data.readAloudPreferences.autoRead !== undefined) {
+                    document.getElementById('autoRead').checked = data.readAloudPreferences.autoRead;
+                }
+                if (data.readAloudPreferences.highlightText !== undefined) {
+                    document.getElementById('highlightText').checked = data.readAloudPreferences.highlightText;
+                }
+                if (data.readAloudPreferences.continueReading !== undefined) {
+                    document.getElementById('continueReading').checked = data.readAloudPreferences.continueReading;
+                }
+                
+                if (data.readAloudPreferences.highlightColor) {
+                    highlightColor.value = data.readAloudPreferences.highlightColor;
+                    highlightPreview.style.backgroundColor = data.readAloudPreferences.highlightColor;
+                }
+            }
+        });
+        
+        // Load keyboard shortcuts
+        chrome.commands.getAll(function(commands) {
+            commands.forEach(command => {
+                if (command.shortcut) {
+                    const shortcutMap = {
+                        'toggle-play': 'playPauseShortcut',
+                        'stop': 'stopShortcut',
+                        'read-selected': 'readSelectedShortcut'
+                    };
+                    
+                    const elementId = shortcutMap[command.name];
+                    if (elementId) {
+                        const element = document.getElementById(elementId);
+                        if (element) {
+                            element.textContent = command.shortcut;
+                        }
+                    }
+                }
+            });
+        });
+    }
+    
+    function setupEventListeners() {
+        rateSlider.addEventListener('input', function() {
+            rateValue.textContent = this.value;
+        });
+        
+        pitchSlider.addEventListener('input', function() {
+            pitchValue.textContent = this.value;
+        });
+        
+        volumeSlider.addEventListener('input', function() {
+            volumeValue.textContent = this.value;
+        });
+        
+        highlightColor.addEventListener('input', function() {
+            highlightPreview.style.backgroundColor = this.value;
+        });
+        
+        saveBtn.addEventListener('click', saveSettings);
+        resetBtn.addEventListener('click', resetSettings);
+        testBtn.addEventListener('click', testVoice);
+        
+        document.getElementById('changePlayPause').addEventListener('click', function() {
+            showNotification('To change shortcuts, go to chrome://extensions/shortcuts');
+        });
+        
+        document.getElementById('changeStop').addEventListener('click', function() {
+            showNotification('To change shortcuts, go to chrome://extensions/shortcuts');
+        });
+        
+        document.getElementById('changeReadSelected').addEventListener('click', function() {
+            showNotification('To change shortcuts, go to chrome://extensions/shortcuts');
+        });
+    }
+    
+    function saveSettings() {
+        const preferences = {
+            voice: voiceSelect.value,
+            rate: parseFloat(rateSlider.value),
+            pitch: parseFloat(pitchSlider.value),
+            volume: parseFloat(volumeSlider.value),
+            readingMode: document.querySelector('input[name="readingMode"]:checked').value,
+            autoRead: document.getElementById('autoRead').checked,
+            highlightText: document.getElementById('highlightText').checked,
+            continueReading: document.getElementById('continueReading').checked,
+            highlightColor: highlightColor.value
+        };
+        
+        chrome.storage.sync.set({ readAloudPreferences: preferences }, function() {
+            showNotification('Settings saved successfully!');
+            
+            chrome.runtime.sendMessage({
+                action: 'updatePreferences',
+                preferences: preferences
+            });
+        });
+    }
+    
+    function resetSettings() {
+        if (confirm('Are you sure you want to reset all settings to default values?')) {
+            const defaultPreferences = {
+                voice: '',
+                rate: 1,
+                pitch: 1,
+                volume: 1,
+                readingMode: 'fullPage',
+                autoRead: false,
+                highlightText: true,
+                continueReading: false,
+                highlightColor: '#fff9c4'
+            };
+            
+            chrome.storage.sync.set({ readAloudPreferences: defaultPreferences }, function() {
+                loadSettings();
+                showNotification('Settings reset to defaults!');
+                
+                chrome.runtime.sendMessage({
+                    action: 'updatePreferences',
+                    preferences: defaultPreferences
+                });
+            });
+        }
+    }
+    
+    function testVoice() {
+        // Stop any previous test
+        if (testUtterance) {
+            speechSynthesis.cancel();
+        }
+        
+        const preferences = {
+            voice: voiceSelect.value,
+            rate: parseFloat(rateSlider.value),
+            pitch: parseFloat(pitchSlider.value),
+            volume: parseFloat(volumeSlider.value)
+        };
+        
+        testUtterance = new SpeechSynthesisUtterance(
+            'This is a test of the current voice settings. You can adjust the voice, speed, pitch, and volume to your preference.'
+        );
+        
+        testUtterance.rate = preferences.rate;
+        testUtterance.pitch = preferences.pitch;
+        testUtterance.volume = preferences.volume;
+        
+        if (preferences.voice) {
+            const allVoices = speechSynthesis.getVoices();
+            const selectedVoice = allVoices.find(voice => voice.name === preferences.voice);
+            if (selectedVoice) {
+                testUtterance.voice = selectedVoice;
+            }
+        }
+        
+        speechSynthesis.speak(testUtterance);
+    }
+    
+    function showNotification(message) {
+        notification.textContent = message;
+        notification.classList.add('show');
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 3000);
+    }
+});
+=============================
+ FILE: popup/popup.html
+=============================
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Read Aloud</title>
+    <style>
+        :root {
+            --primary: #4285f4;
+            --primary-dark: #3367d6;
+            --secondary: #34a853;
+            --accent: #ea4335;
+            --light: #f8f9fa;
+            --dark: #202124;
+            --gray: #5f6368;
+            --border: #dadce0;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+            width: 320px;
+            min-height: 500px; /* Increased height */
+            padding: 0;
+            margin: 0;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 16px;
+            text-align: center;
+            position: relative;
+        }
+        
+        h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .status {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+        
+        .content {
+            padding: 16px;
+            flex-grow: 1;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+        }
+        
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #2c9440;
+        }
+        
+        .btn-accent {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .btn-accent:hover {
+            background: #d32f2f;
+        }
+        
+        .btn:disabled {
+            background: var(--border);
+            color: var(--gray);
+            cursor: not-allowed;
+        }
+        
+        .settings-group {
+            margin-bottom: 16px;
+        }
+        
+        .settings-label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: var(--dark);
+        }
+        
+        select, input[type="range"] {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 13px;
+            background: white;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .slider-value {
+            font-size: 12px;
+            min-width: 30px;
+            text-align: right;
+            color: var(--gray);
+        }
+        
+        .progress-container {
+            margin: 16px 0;
+        }
+        
+        .progress-bar {
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 12px;
+            color: var(--gray);
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .footer {
+            padding: 12px 16px;
+            background: var(--light);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--gray);
+            font-size: 16px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .icon-btn:hover {
+            background: var(--border);
+            color: var(--dark);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .text-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .text-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+        
+        .text-option input[type="radio"] {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Read Aloud</h1>
+            <div class="status" id="status">Ready to read</div>
+        </header>
+        
+        <div class="content">
+            <div class="section">
+                <div class="section-title">
+                    <span>🔊</span> Reading Controls
+                </div>
+                <div class="controls">
+                    <button id="readPageBtn" class="btn btn-primary">
+                        <span>📄</span> Read Page
+                    </button>
+                    <button id="readSelectedBtn" class="btn btn-secondary" disabled>
+                        <span>🔍</span> Read Selected
+                    </button>
+                </div>
+                <div class="controls">
+                    <button id="playPauseBtn" class="btn" disabled>
+                        <span>⏯️</span> Play/Pause
+                    </button>
+                    <button id="stopBtn" class="btn btn-accent" disabled>
+                        <span>⏹️</span> Stop
+                    </button>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="progressTime">0:00</span>
+                        <span id="totalTime">0:00</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">
+                    <span>⚙️</span> Voice Settings
+                </div>
+                <div class="settings-group">
+                    <label class="settings-label" for="voiceSelect">Voice</label>
+                    <select id="voiceSelect">
+                        <option value="">Loading voices...</option>
+                    </select>
+                </div>
+                
+                <div class="settings-group">
+                    <label class="settings-label" for="rateSlider">Speed</label>
+                    <div class="slider-container">
+                        <input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1">
+                        <span class="slider-value" id="rateValue">1.0</span>
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <label class="settings-label" for="pitchSlider">Pitch</label>
+                    <div class="slider-container">
+                        <input type="range" id="pitchSlider" min="0.5" max="2" step="0.1" value="1">
+                        <span class="slider-value" id="pitchValue">1.0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">
+                    <span>📝</span> Text Options
+                </div>
+                <div class="text-options">
+                    <label class="text-option">
+                        <input type="radio" name="textOption" value="fullPage" checked>
+                        Read full page
+                    </label>
+                    <label class="text-option">
+                        <input type="radio" name="textOption" value="articleOnly">
+                        Read article content only
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <button class="icon-btn" id="settingsBtn" title="Settings">
+                ⚙️
+            </button>
+            <div>
+                <button class="icon-btn" id="helpBtn" title="Help">
+                    ❓
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
+=============================
+ FILE: popup/popup.js
+=============================
+document.addEventListener('DOMContentLoaded', function() {
+    const statusElement = document.getElementById('status');
+    const readPageBtn = document.getElementById('readPageBtn');
+    const readSelectedBtn = document.getElementById('readSelectedBtn');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const voiceSelect = document.getElementById('voiceSelect');
+    const rateSlider = document.getElementById('rateSlider');
+    const rateValue = document.getElementById('rateValue');
+    const pitchSlider = document.getElementById('pitchSlider');
+    const pitchValue = document.getElementById('pitchValue');
+    const progressFill = document.getElementById('progressFill');
+    const progressTime = document.getElementById('progressTime');
+    const totalTime = document.getElementById('totalTime');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const helpBtn = document.getElementById('helpBtn');
+    
+    let isReading = false;
+    let isPaused = false;
+    let voices = [];
+    
+    init();
+
+    function init() {
+        loadVoices();
+        loadPreferences();
+        setupEventListeners();
+        checkCurrentPage();
+        checkReadingStatus();
+    }
+    
+    function loadVoices() {
+        // Request voices from background (which will get them from offscreen)
+        chrome.runtime.sendMessage({ action: 'getVoices' }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error('Error getting voices:', chrome.runtime.lastError);
+                setTimeout(loadVoices, 1000); // Retry after 1 second
+                return;
+            }
+            
+            if (response && response.voices && response.voices.length > 0) {
+                voices = response.voices;
+                populateVoiceSelect();
+            } else {
+                // Retry after a short delay
+                setTimeout(loadVoices, 500);
+            }
+        });
+    }
+    
+    function populateVoiceSelect() {
+        voiceSelect.innerHTML = '';
+        
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Default Voice';
+        voiceSelect.appendChild(defaultOption);
+        
+        voices.forEach(voice => {
+            const option = document.createElement('option');
+            option.value = voice.name;
+            option.textContent = `${voice.name} (${voice.lang})`;
+            voiceSelect.appendChild(option);
+        });
+        
+        chrome.storage.sync.get('readAloudPreferences', function(data) {
+            if (data.readAloudPreferences && data.readAloudPreferences.voice) {
+                voiceSelect.value = data.readAloudPreferences.voice;
+            }
+        });
+    }
+    
+    function loadPreferences() {
+        chrome.storage.sync.get('readAloudPreferences', function(data) {
+            if (data.readAloudPreferences) {
+                if (data.readAloudPreferences.rate) {
+                    rateSlider.value = data.readAloudPreferences.rate;
+                    rateValue.textContent = data.readAloudPreferences.rate;
+                }
+                if (data.readAloudPreferences.pitch) {
+                    pitchSlider.value = data.readAloudPreferences.pitch;
+                    pitchValue.textContent = data.readAloudPreferences.pitch;
+                }
+            }
+        });
+    }
+    
+    function savePreferences() {
+        const preferences = {
+            voice: voiceSelect.value,
+            rate: parseFloat(rateSlider.value),
+            pitch: parseFloat(pitchSlider.value)
+        };
+        
+        chrome.storage.sync.set({ readAloudPreferences: preferences });
+        
+        chrome.runtime.sendMessage({
+            action: 'updatePreferences',
+            preferences: preferences
+        });
+    }
+    
+    function setupEventListeners() {
+        readPageBtn.addEventListener('click', readPage);
+        readSelectedBtn.addEventListener('click', readSelectedText);
+        playPauseBtn.addEventListener('click', togglePlayPause);
+        stopBtn.addEventListener('click', stopReading);
+        
+        voiceSelect.addEventListener('change', savePreferences);
+        rateSlider.addEventListener('input', function() {
+            rateValue.textContent = this.value;
+            savePreferences();
+        });
+        pitchSlider.addEventListener('input', function() {
+            pitchValue.textContent = this.value;
+            savePreferences();
+        });
+        
+        settingsBtn.addEventListener('click', openSettings);
+        helpBtn.addEventListener('click', openHelp);
+        
+        chrome.runtime.onMessage.addListener(handleMessage);
+    }
+    
+    function checkCurrentPage() {
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+            if (tabs.length === 0) {
+                statusElement.textContent = 'No active tab';
+                readPageBtn.disabled = true;
+                return;
+            }
+            
+            const tab = tabs[0];
+            
+            // Check if we can access this page
+            const restrictedUrls = ['chrome://', 'chrome-extension://', 'edge://', 'about:', 'view-source:'];
+            const isRestricted = restrictedUrls.some(prefix => tab.url.startsWith(prefix));
+            
+            if (isRestricted) {
+                statusElement.textContent = 'Cannot access this page';
+                readPageBtn.disabled = true;
+                readSelectedBtn.disabled = true;
+                return;
+            }
+            
+            // Enable read page button
+            readPageBtn.disabled = false;
+            
+            // Check for selected text
+            checkSelectedText();
+        });
+    }
+    
+    function checkSelectedText() {
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+            if (tabs.length === 0) return;
+            
+            chrome.tabs.sendMessage(
+                tabs[0].id, 
+                { action: 'getSelectedText' }, 
+                function(response) {
+                    if (chrome.runtime.lastError) {
+                        console.log('Could not check selection:', chrome.runtime.lastError.message);
+                        readSelectedBtn.disabled = true;
+                        return;
+                    }
+                    
+                    if (response && response.success && response.text) {
+                        readSelectedBtn.disabled = false;
+                    } else {
+                        readSelectedBtn.disabled = true;
+                    }
+                }
+            );
+        });
+    }
+    
+    function checkReadingStatus() {
+        chrome.runtime.sendMessage({ action: 'getStatus' }, function(response) {
+            if (response) {
+                isReading = response.isReading;
+                isPaused = response.isPaused;
+                updateUI();
+            }
+        });
+    }
+    
+    function handleMessage(request, sender, sendResponse) {
+        if (request.action === 'statusUpdate') {
+            isReading = request.status.isReading;
+            isPaused = request.status.isPaused;
+            updateUI();
+        } else if (request.action === 'textSelected') {
+            readSelectedBtn.disabled = !request.text;
+        }
+    }
+    
+    function updateUI() {
+        if (isReading) {
+            statusElement.textContent = isPaused ? 'Paused' : 'Reading...';
+            playPauseBtn.disabled = false;
+            stopBtn.disabled = false;
+            
+            playPauseBtn.innerHTML = '';
+            const iconSpan = document.createElement('span');
+            iconSpan.textContent = isPaused ? '▶️' : '⏸️';
+            playPauseBtn.appendChild(iconSpan);
+            playPauseBtn.appendChild(document.createTextNode(isPaused ? ' Resume' : ' Pause'));
+        } else {
+            statusElement.textContent = 'Ready to read';
+            playPauseBtn.disabled = true;
+            stopBtn.disabled = true;
+            
+            progressFill.style.width = '0%';
+            progressTime.textContent = '0:00';
+            totalTime.textContent = '0:00';
+        }
+    }
+    
+    function updateProgress(current, total) {
+        if (total > 0) {
+            const percentage = (current / total) * 100;
+            progressFill.style.width = percentage + '%';
+            
+            progressTime.textContent = formatTime(current);
+            totalTime.textContent = formatTime(total);
+        }
+    }
+    
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    function readPage() {
+        const textOption = document.querySelector('input[name="textOption"]:checked').value;
+        
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+            if (tabs.length === 0) {
+                statusElement.textContent = 'No active tab';
+                return;
+            }
+            
+            const tab = tabs[0];
+            
+            // Double-check we can access this page
+            const restrictedUrls = ['chrome://', 'chrome-extension://', 'edge://', 'about:', 'view-source:'];
+            const isRestricted = restrictedUrls.some(prefix => tab.url.startsWith(prefix));
+            
+            if (isRestricted) {
+                statusElement.textContent = 'Cannot read system pages';
+                return;
+            }
+            
+            statusElement.textContent = 'Extracting text...';
+            
+            chrome.tabs.sendMessage(
+                tab.id, 
+                { action: 'extractText', option: textOption },
+                function(response) {
+                    if (chrome.runtime.lastError) {
+                        console.error('Content script error:', chrome.runtime.lastError);
+                        statusElement.textContent = 'Page not ready. Refresh and try again.';
+                        return;
+                    }
+                    
+                    if (response && response.success && response.text) {
+                        if (response.text.trim().length === 0) {
+                            statusElement.textContent = 'No text found on page';
+                            return;
+                        }
+                        
+                        chrome.runtime.sendMessage({
+                            action: 'startReading',
+                            text: response.text
+                        });
+                    } else {
+                        statusElement.textContent = 'Failed to extract text';
+                    }
+                }
+            );
+        });
+    }
+    
+    function readSelectedText() {
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+            if (tabs.length === 0) return;
+            
+            chrome.tabs.sendMessage(
+                tabs[0].id, 
+                { action: 'getSelectedText' },
+                function(response) {
+                    if (chrome.runtime.lastError) {
+                        statusElement.textContent = 'Cannot access this page';
+                        return;
+                    }
+                    
+                    if (response && response.success && response.text) {
+                        chrome.runtime.sendMessage({
+                            action: 'startReading',
+                            text: response.text
+                        });
+                    } else {
+                        statusElement.textContent = 'No text selected';
+                    }
+                }
+            );
+        });
+    }
+    
+    function togglePlayPause() {
+        if (isPaused) {
+            chrome.runtime.sendMessage({ action: 'resumeReading' });
+        } else {
+            chrome.runtime.sendMessage({ action: 'pauseReading' });
+        }
+    }
+    
+    function stopReading() {
+        chrome.runtime.sendMessage({ action: 'stopReading' });
+    }
+    
+    function openSettings() {
+        chrome.runtime.openOptionsPage();
+    }
+    
+    function openHelp() {
+        const helpUrl = 'https://github.com/yourusername/read-aloud-extension#readme';
+        chrome.tabs.create({ url: helpUrl });
+    }
+});
+=============================
+ ls ./icons/
+=============================
+icon128.png
+icon16.png
+icon48.png
