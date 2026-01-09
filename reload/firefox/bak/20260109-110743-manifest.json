@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "My Page Reloader",
+  "version": "1.0",
+  "description": "Click the icon to instantly reload the current page",
+  "permissions": ["activeTab"],
+  "background": {
+    "scripts": ["background.js"],
+    "type": "module"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Click to reload page"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "page-reloader@example.com",
+      "strict_min_version": "109.0"
+    }
+  }
+}
