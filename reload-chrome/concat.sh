@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-files="background.js manifest.json popup.html popup.js"
+files="background.js content.js manifest.json options/options.html options/options.js popup/popup.html popup/popup.js"
 output_file=$rhd/project-contents.txt
 >$output_file
 for i in $files
