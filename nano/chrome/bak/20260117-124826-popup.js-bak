@@ -1,0 +1,180 @@
+class GeminiNanoExtension {
+  constructor() {
+    this.session = null;
+    this.isAvailable = false;
+    this.isGenerating = false;
+    this.init();
+  }
+
+  async init() {
+    await this.checkAIAvailability();
+    this.setupEventListeners();
+    this.focusInput();
+  }
+
+  async checkAIAvailability() {
+    const statusEl = document.getElementById('status');
+    const statusTextEl = document.getElementById('status-text');
+    const statusIconEl = statusEl.querySelector('.status-icon');
+    
+    // Check if chrome.ai API is available
+    if (!chrome.ai?.languageModel) {
+      statusIconEl.textContent = '❌';
+      statusTextEl.textContent = 'Chrome AI API not available';
+      statusEl.className = 'status disconnected';
+      this.showError('This extension requires Chrome 138+ with AI features enabled.');
+      return;
+    }
+
+    try {
+      const capabilities = await chrome.ai.languageModel.capabilities();
+      console.log('AI Capabilities:', capabilities);
+      
+      if (capabilities.available === "readily") {
+        // Model is ready to use
+        await this.initializeSession();
+        
+        if (this.session) {
+          statusIconEl.textContent = '✅';
+          statusTextEl.textContent = 'Gemini Nano Connected (Local)';
+          statusEl.className = 'status connected';
+          document.getElementById('sendBtn').disabled = false;
+          this.isAvailable = true;
+        }
+      } else if (capabilities.available === "after-download") {
+        // Model needs to be downloaded
+        statusIconEl.textContent = '⏳';
+        statusTextEl.textContent = 'Downloading Gemini Nano model...';
+        statusEl.className = 'status downloading';
+        
+        // Trigger download by creating a session
+        try {
+          await this.initializeSession();
+          // Recheck after download attempt
+          setTimeout(() => this.checkAIAvailability(), 2000);
+        } catch (error) {
+          statusTextEl.textContent = 'Failed to download model';
+          this.showError('Model download failed. Please check your internet connection and try again.');
+        }
+      } else {
+        statusIconEl.textContent = '❌';
+        statusTextEl.textContent = 'Gemini Nano not available';
+        statusEl.className = 'status disconnected';
+        this.showError('Gemini Nano is not available on this device. Requires Chrome 138+ on desktop.');
+      }
+    } catch (error) {
+      console.error("Error accessing AI model:", error);
+      statusIconEl.textContent = '❌';
+      statusTextEl.textContent = `Error: ${error.message}`;
+      statusEl.className = 'status disconnected';
+      this.showError(`Failed to initialize AI: ${error.message}`);
+    }
+  }
+
+  async initializeSession() {
+    try {
+      this.session = await chrome.ai.languageModel.create({
+        systemPrompt: "You are a helpful AI assistant. Provide clear, concise, and accurate responses.",
+        temperature: 0.7,
+        topK: 40
+      });
+      console.log('Session initialized successfully');
+    } catch (error) {
+      console.error('Failed to create session:', error);
+      throw error;
+    }
+  }
+
+  setupEventListeners() {
+    const sendBtn = document.getElementById('sendBtn');
+    const promptInput = document.getElementById('prompt');
+    
+    sendBtn.addEventListener('click', () => this.generateResponse());
+    
+    promptInput.addEventListener('keydown', (e) => {
+      // Submit on Enter (without Shift)
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        this.generateResponse();
+      }
+    });
+
+    // Auto-resize textarea
+    promptInput.addEventListener('input', () => {
+      this.autoResizeTextarea(promptInput);
+    });
+  }
+
+  autoResizeTextarea(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+  }
+
+  focusInput() {
+    const promptInput = document.getElementById('prompt');
+    promptInput.focus();
+  }
+
+  async generateResponse() {
+    if (this.isGenerating) return;
+    
+    const prompt = document.getElementById('prompt').value.trim();
+    const responseEl = document.getElementById('response');
+    const loadingEl = document.getElementById('loading');
+    const sendBtn = document.getElementById('sendBtn');
+    
+    if (!prompt) {
+      this.showError('Please enter a prompt');
+      return;
+    }
+    
+    if (!this.session) {
+      this.showError('AI session not initialized. Please wait or reload the extension.');
+      return;
+    }
+    
+    // Show loading state
+    this.isGenerating = true;
+    loadingEl.classList.add('show');
+    responseEl.textContent = '';
+    responseEl.classList.remove('show');
+    sendBtn.disabled = true;
+    
+    try {
+      // Use prompt() method (correct API method)
+      const response = await this.session.prompt(prompt);
+      
+      responseEl.textContent = response;
+      responseEl.classList.add('show');
+      
+      // Clear input after successful generation
+      document.getElementById('prompt').value = '';
+      
+    } catch (error) {
+      console.error("Generation error:", error);
+      this.showError(`Generation failed: ${error.message}`);
+      responseEl.classList.add('show');
+    } finally {
+      loadingEl.classList.remove('show');
+      sendBtn.disabled = false;
+      this.isGenerating = false;
+    }
+  }
+
+  showError(message) {
+    const responseEl = document.getElementById('response');
+    responseEl.innerHTML = `<div class="error">${this.escapeHtml(message)}</div>`;
+    responseEl.classList.add('show');
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+}
+
+// Initialize when DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+  new GeminiNanoExtension();
+});

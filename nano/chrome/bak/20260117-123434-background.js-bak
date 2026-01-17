@@ -1,0 +1,102 @@
+// Manage extension state and context
+class ExtensionBackground {
+  constructor() {
+    this.context = {};
+    this.init();
+  }
+
+  async init() {
+    // Check for AI API availability
+    await this.checkAICapabilities();
+    
+    // Setup context menu if available
+    this.setupContextMenu();
+    
+    // Listen for messages from content scripts
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      this.handleMessage(message, sender, sendResponse);
+      return true; // Keep message channel open for async
+    });
+  }
+
+  async checkAICapabilities() {
+    if (chrome.ai && chrome.ai.languageModel) {
+      try {
+        const caps = await chrome.ai.languageModel.capabilities();
+        console.log("AI Capabilities:", caps);
+        
+        // Store available models
+        this.context.availableModels = caps.models || [];
+        this.context.hasGeminiNano = this.context.availableModels.some(
+          m => m.includes('gemini') || m.includes('nano')
+        );
+        
+      } catch (error) {
+        console.error("Failed to get AI capabilities:", error);
+      }
+    }
+  }
+
+  setupContextMenu() {
+    // Create context menu for text selection
+    chrome.contextMenus.create({
+      id: "ask-gemini",
+      title: "Ask Gemini Nano",
+      contexts: ["selection"]
+    });
+
+    chrome.contextMenus.onClicked.addListener((info, tab) => {
+      if (info.menuItemId === "ask-gemini" && info.selectionText) {
+        // Open side panel with the selected text
+        chrome.sidePanel.open({ tabId: tab.id });
+        
+        // Send the selected text to the side panel
+        chrome.tabs.sendMessage(tab.id, {
+          action: "selectedText",
+          text: info.selectionText
+        });
+      }
+    });
+  }
+
+  handleMessage(message, sender, sendResponse) {
+    switch (message.action) {
+      case "generateText":
+        this.generateText(message.prompt, sendResponse);
+        break;
+      case "checkAvailability":
+        sendResponse({
+          available: this.context.hasGeminiNano,
+          models: this.context.availableModels
+        });
+        break;
+      default:
+        sendResponse({ error: "Unknown action" });
+    }
+  }
+
+  async generateText(prompt, callback) {
+    try {
+      if (!chrome.ai?.languageModel) {
+        throw new Error("AI API not available");
+      }
+
+      const model = await chrome.ai.languageModel.create({
+        model: "gemini-nano",
+        temperature: 0.7
+      });
+
+      const response = await model.generate(prompt, {
+        maxTokens: 1024
+      });
+
+      callback({ success: true, response });
+    } catch (error) {
+      console.error("Background generation error:", error);
+      callback({ success: false, error: error.message });
+    }
+  }
+}
+
+// Initialize
+const background = new ExtensionBackground();

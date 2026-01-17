@@ -1,0 +1,55 @@
+// sidepanel.js
+class SidePanelAssistant {
+  constructor() {
+    this.context = '';
+    this.init();
+  }
+
+  async init() {
+    // Get context from background
+    chrome.runtime.sendMessage(
+      { action: "getContext" },
+      (response) => {
+        this.context = response?.text || '';
+        this.updateContextDisplay();
+      }
+    );
+
+    document.getElementById('generateBtn').addEventListener('click', () => {
+      this.generate();
+    });
+  }
+
+  updateContextDisplay() {
+    if (this.context) {
+      document.getElementById('context').innerHTML = 
+        `<strong>Context:</strong> ${this.context}`;
+    }
+  }
+
+  async generate() {
+    const input = document.getElementById('userInput').value;
+    const fullPrompt = this.context ? 
+      `Context: ${this.context}\n\nQuestion: ${input}` : input;
+
+    const resultEl = document.getElementById('result');
+    resultEl.textContent = "Processing locally...";
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: "generateText",
+        prompt: fullPrompt
+      });
+
+      if (response.success) {
+        resultEl.textContent = response.response;
+      } else {
+        resultEl.textContent = `Error: ${response.error}`;
+      }
+    } catch (error) {
+      resultEl.textContent = `Error: ${error.message}`;
+    }
+  }
+}
+
+new SidePanelAssistant();

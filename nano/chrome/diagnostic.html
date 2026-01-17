@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Gemini Nano Diagnostic</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f8f9fa;
+    }
+    
+    h1 { color: #202124; }
+    
+    .diagnostic-box {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+    }
+    
+    .status { 
+      padding: 8px 12px; 
+      border-radius: 6px; 
+      display: inline-block;
+      font-weight: 500;
+      margin-left: 10px;
+    }
+    .pass { background: #e8f5e9; color: #2e7d32; }
+    .fail { background: #ffebee; color: #c62828; }
+    .warn { background: #fff3e0; color: #e65100; }
+    
+    button {
+      background: #4285f4;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      margin: 5px;
+    }
+    
+    button:hover { background: #3367d6; }
+    
+    code {
+      background: #f1f3f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    
+    pre {
+      background: #f1f3f4;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+    
+    .step {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Gemini Nano Diagnostic Tool</h1>
+  
+  <div class="diagnostic-box">
+    <h3>Step 1: Check Chrome Version</h3>
+    <div id="chromeVersion"></div>
+  </div>
+  
+  <div class="diagnostic-box">
+    <h3>Step 2: Check API Availability</h3>
+    <button onclick="checkAPIs()">Run API Check</button>
+    <div id="apiResults"></div>
+  </div>
+  
+  <div class="diagnostic-box">
+    <h3>Step 3: Check Model Status</h3>
+    <p>Go to <code>chrome://on-device-internals/</code> and check:</p>
+    <div class="step">
+      ✓ Foundational model state should be "Ready"<br>
+      ✓ Model Name should show (e.g., "v3Nano")<br>
+      ✓ Version should be recent<br>
+    </div>
+    <button onclick="window.open('chrome://on-device-internals/', '_blank')">Open On-Device Internals</button>
+  </div>
+  
+  <div class="diagnostic-box">
+    <h3>Step 4: Check Required Flags</h3>
+    <p>These flags must be enabled in <code>chrome://flags</code>:</p>
+    <div class="step">
+      ✓ <code>#optimization-guide-on-device-model</code> → <strong>Enabled BypassPerfRequirement</strong><br>
+      ✓ <code>#prompt-api-for-gemini-nano</code> → <strong>Enabled</strong>
+    </div>
+    <button onclick="window.open('chrome://flags/#optimization-guide-on-device-model', '_blank')">Open Flags</button>
+  </div>
+  
+  <div class="diagnostic-box">
+    <h3>Step 5: Download Model (if needed)</h3>
+    <button onclick="downloadModel()">Trigger Model Download</button>
+    <div id="downloadStatus"></div>
+  </div>
+  
+  <div class="diagnostic-box">
+    <h3>Step 6: Test Generation</h3>
+    <button onclick="testGeneration()">Test AI Generation</button>
+    <div id="testResults"></div>
+  </div>
+
+  <script>
+    // Check Chrome version
+    const match = navigator.userAgent.match(/Chrome\/(\d+)/);
+    const version = match ? parseInt(match[1]) : 0;
+    const versionEl = document.getElementById('chromeVersion');
+    
+    if (version >= 138) {
+      versionEl.innerHTML = `Chrome ${version} <span class="status pass">✓ PASS</span>`;
+    } else {
+      versionEl.innerHTML = `Chrome ${version} <span class="status fail">✗ FAIL - Need Chrome 138+</span>`;
+    }
+
+    async function checkAPIs() {
+      const resultsEl = document.getElementById('apiResults');
+      resultsEl.innerHTML = '<p>Checking...</p>';
+      
+      let results = '<pre>';
+      
+      // Check different API variations
+      results += 'window.ai: ' + (typeof window.ai !== 'undefined' ? '✓ Available (OBSOLETE)' : '✗ Undefined') + '\n';
+      results += 'chrome.ai: ' + (typeof chrome?.ai !== 'undefined' ? '✓ Available (OBSOLETE)' : '✗ Undefined') + '\n';
+      results += 'self.ai: ' + (typeof self?.ai !== 'undefined' ? '✓ Available' : '✗ Undefined') + '\n';
+      results += 'LanguageModel: ' + (typeof LanguageModel !== 'undefined' ? '✓ Available (CURRENT API)' : '✗ Undefined') + '\n\n';
+      
+      // Check LanguageModel availability
+      if (typeof LanguageModel !== 'undefined') {
+        try {
+          const availability = await LanguageModel.availability();
+          results += `LanguageModel.availability(): "${availability}"\n`;
+          
+          if (availability === 'available') {
+            results += '<span style="color: green">✓ Model is ready to use!</span>\n';
+          } else if (availability === 'downloadable') {
+            results += '<span style="color: orange">⚠ Model needs to be downloaded</span>\n';
+          } else if (availability === 'downloading') {
+            results += '<span style="color: blue">⏳ Model is currently downloading</span>\n';
+          } else {
+            results += '<span style="color: red">✗ Model unavailable</span>\n';
+          }
+        } catch (error) {
+          results += `Error: ${error.message}\n`;
+        }
+      }
+      
+      results += '</pre>';
+      resultsEl.innerHTML = results;
+    }
+
+    async function downloadModel() {
+      const statusEl = document.getElementById('downloadStatus');
+      statusEl.innerHTML = '<p>Attempting to download model...</p>';
+      
+      try {
+        if (typeof LanguageModel === 'undefined') {
+          throw new Error('LanguageModel API not available');
+        }
+        
+        const session = await LanguageModel.create({
+          monitor(m) {
+            m.addEventListener('downloadprogress', (e) => {
+              statusEl.innerHTML = `<p>Downloading: ${(e.loaded * 100).toFixed(1)}%</p>`;
+            });
+          }
+        });
+        
+        statusEl.innerHTML = '<span class="status pass">✓ Model ready!</span>';
+      } catch (error) {
+        statusEl.innerHTML = `<span class="status fail">✗ Error: ${error.message}</span>`;
+      }
+    }
+
+    async function testGeneration() {
+      const resultsEl = document.getElementById('testResults');
+      resultsEl.innerHTML = '<p>Testing...</p>';
+      
+      try {
+        if (typeof LanguageModel === 'undefined') {
+          throw new Error('LanguageModel API not available');
+        }
+        
+        const session = await LanguageModel.create();
+        const response = await session.prompt('Say hello in one sentence.');
+        
+        resultsEl.innerHTML = `
+          <span class="status pass">✓ SUCCESS!</span>
+          <pre>Response: ${response}</pre>
+        `;
+      } catch (error) {
+        resultsEl.innerHTML = `<span class="status fail">✗ Error: ${error.message}</span>`;
+      }
+    }
+
+    // Auto-run API check on load
+    window.addEventListener('load', () => {
+      setTimeout(checkAPIs, 500);
+    });
+  </script>
+</body>
+</html>

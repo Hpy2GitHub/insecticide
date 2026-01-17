@@ -1,0 +1,127 @@
+// Inject Gemini Nano assistant into web pages
+class ContentAssistant {
+  constructor() {
+    this.selectedText = '';
+    this.setupSelectionListener();
+    this.injectAssistantButton();
+  }
+
+  setupSelectionListener() {
+    // Listen for text selection
+    document.addEventListener('mouseup', (e) => {
+      const selection = window.getSelection().toString().trim();
+      if (selection && selection.length > 0) {
+        this.selectedText = selection;
+        this.showFloatingButton(e.pageX, e.pageY);
+      }
+    });
+  }
+
+  showFloatingButton(x, y) {
+    // Remove existing button
+    const existingBtn = document.getElementById('gemini-floating-btn');
+    if (existingBtn) existingBtn.remove();
+
+    // Create floating button
+    const btn = document.createElement('div');
+    btn.id = 'gemini-floating-btn';
+    btn.innerHTML = '✨';
+    btn.title = 'Ask Gemini Nano about this text';
+    
+    Object.assign(btn.style, {
+      position: 'absolute',
+      left: `${x + 10}px`,
+      top: `${y - 40}px`,
+      background: '#4285f4',
+      color: 'white',
+      width: '36px',
+      height: '36px',
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '20px',
+      cursor: 'pointer',
+      boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+      zIndex: '10000'
+    });
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.openSidePanelWithText();
+    });
+
+    document.body.appendChild(btn);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      if (btn.parentNode) btn.remove();
+    }, 5000);
+  }
+
+  async openSidePanelWithText() {
+    // Send selected text to extension
+    chrome.runtime.sendMessage({
+      action: "openSidePanel",
+      text: this.selectedText
+    });
+  }
+
+  injectAssistantButton() {
+    // Add a small button to the page for quick access
+    const style = document.createElement('style');
+    style.textContent = `
+      #gemini-sidebar-btn {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        width: 50px;
+        height: 50px;
+        background: #4285f4;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        z-index: 10000;
+        transition: transform 0.2s;
+      }
+      #gemini-sidebar-btn:hover {
+        transform: scale(1.1);
+      }
+    `;
+    document.head.appendChild(style);
+
+    const btn = document.createElement('div');
+    btn.id = 'gemini-sidebar-btn';
+    btn.innerHTML = '🤖';
+    btn.title = 'Open Gemini Nano Assistant';
+    
+    btn.addEventListener('click', () => {
+      chrome.runtime.sendMessage({
+        action: "openSidePanel"
+      });
+    });
+
+    document.body.appendChild(btn);
+  }
+}
+
+// Listen for messages from background/popup
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "selectedText") {
+    // Handle text selection from context menu
+    console.log("Selected text received:", message.text);
+  }
+  return true;
+});
+
+// Initialize when page loads
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => new ContentAssistant());
+} else {
+  new ContentAssistant();
+}

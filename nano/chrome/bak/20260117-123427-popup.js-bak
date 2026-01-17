@@ -1,0 +1,89 @@
+class GeminiNanoExtension {
+  constructor() {
+    this.model = null;
+    this.isAvailable = false;
+    this.init();
+  }
+
+  async init() {
+    await this.checkAIAvailability();
+    this.setupEventListeners();
+  }
+
+  async checkAIAvailability() {
+    const statusEl = document.getElementById('status');
+    
+    if (!window.ai || !window.ai.languageModel) {
+      statusEl.textContent = "❌ window.ai API not available";
+      statusEl.className = "status disconnected";
+      return;
+    }
+
+    try {
+      const capabilities = await window.ai.languageModel.capabilities();
+      this.isAvailable = capabilities.available;
+      
+      if (this.isAvailable) {
+        // Get the Gemini Nano model
+        this.model = await window.ai.languageModel.create({
+          model: "gemini-nano", // or check available models
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95
+        });
+        
+        statusEl.textContent = "✅ Gemini Nano Connected (Local)";
+        statusEl.className = "status connected";
+        document.getElementById('sendBtn').disabled = false;
+      } else {
+        statusEl.textContent = "❌ Gemini Nano not available locally";
+        statusEl.className = "status disconnected";
+      }
+    } catch (error) {
+      console.error("Error accessing AI model:", error);
+      statusEl.textContent = `❌ Error: ${error.message}`;
+      statusEl.className = "status disconnected";
+    }
+  }
+
+  setupEventListeners() {
+    const sendBtn = document.getElementById('sendBtn');
+    const promptInput = document.getElementById('prompt');
+    
+    sendBtn.addEventListener('click', () => this.generateResponse());
+    promptInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.generateResponse();
+    });
+  }
+
+  async generateResponse() {
+    const prompt = document.getElementById('prompt').value.trim();
+    const responseEl = document.getElementById('response');
+    const loadingEl = document.getElementById('loading');
+    
+    if (!prompt || !this.model) return;
+    
+    // Show loading
+    loadingEl.style.display = 'block';
+    responseEl.textContent = '';
+    
+    try {
+      const response = await this.model.generate(prompt, {
+        maxTokens: 1024,
+        temperature: 0.7
+      });
+      
+      responseEl.textContent = response;
+    } catch (error) {
+      console.error("Generation error:", error);
+      responseEl.textContent = `Error: ${error.message}`;
+    } finally {
+      loadingEl.style.display = 'none';
+    }
+  }
+}
+
+// Initialize when DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+  new GeminiNanoExtension();
+});
