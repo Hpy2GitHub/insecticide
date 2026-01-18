@@ -3,7 +3,6 @@ class SidePanelAssistant {
     this.context = '';
     this.conversationHistory = [];
     this.isGenerating = false;
-    this.consecutiveErrors = 0;
     this.init();
   }
 
@@ -52,7 +51,6 @@ class SidePanelAssistant {
       if (response?.available && response?.hasSession) {
         statusIndicator.classList.remove('disconnected');
         sendBtn.disabled = false;
-        this.consecutiveErrors = 0;
       } else {
         statusIndicator.classList.add('disconnected');
         this.addMessage('error', 'AI model not available. Please ensure Gemini Nano is enabled in your browser.');
@@ -91,20 +89,6 @@ class SidePanelAssistant {
     document.getElementById('userInput').focus();
   }
 
-  async resetSession() {
-    this.addMessage('system', '🔄 Resetting AI session...');
-    
-    try {
-      await chrome.runtime.sendMessage({ action: "resetSession" });
-      this.consecutiveErrors = 0;
-      this.addMessage('system', '✅ Session reset successfully. You can continue the conversation.');
-      await this.checkAIStatus();
-    } catch (error) {
-      console.error('Reset error:', error);
-      this.addMessage('error', `Failed to reset session: ${error.message}`);
-    }
-  }
-
   async handleSend() {
     if (this.isGenerating) return;
 
@@ -140,58 +124,18 @@ class SidePanelAssistant {
         this.addMessage('assistant', response.response);
         // Clear context after first use
         this.context = '';
-        this.consecutiveErrors = 0;
       } else {
-        this.consecutiveErrors++;
-        
-        // Show error message
-        let errorMsg = `Error: ${response.error || 'Unknown error occurred'}`;
-        
-        // Offer reset if multiple errors
-        if (this.consecutiveErrors >= 2 || response.shouldReset) {
-          errorMsg += '\n\nToo many errors detected. Would you like to reset the session?';
-          this.addMessage('error', errorMsg);
-          this.addResetButton();
-        } else {
-          this.addMessage('error', errorMsg);
-        }
+        this.addMessage('error', `Error: ${response.error || 'Unknown error occurred'}`);
       }
     } catch (error) {
       console.error('Generation error:', error);
-      this.consecutiveErrors++;
-      
-      let errorMsg = `Failed to generate response: ${error.message}`;
-      
-      if (this.consecutiveErrors >= 2) {
-        errorMsg += '\n\nMultiple errors detected. Session may need to be reset.';
-        this.addResetButton();
-      }
-      
-      this.addMessage('error', errorMsg);
+      this.addMessage('error', `Failed to generate response: ${error.message}`);
     } finally {
       this.showLoading(false);
       this.isGenerating = false;
       document.getElementById('sendBtn').disabled = false;
       this.focusInput();
     }
-  }
-
-  addResetButton() {
-    // Check if reset button already exists
-    if (document.getElementById('resetSessionBtn')) return;
-    
-    const conversation = document.getElementById('conversation');
-    const resetBtn = document.createElement('div');
-    resetBtn.id = 'resetSessionBtn';
-    resetBtn.className = 'reset-button';
-    resetBtn.innerHTML = '🔄 Reset AI Session';
-    resetBtn.onclick = () => {
-      resetBtn.remove();
-      this.resetSession();
-    };
-    
-    conversation.appendChild(resetBtn);
-    this.scrollToBottom();
   }
 
   addMessage(type, content) {
@@ -209,10 +153,8 @@ class SidePanelAssistant {
 
     conversation.appendChild(messageEl);
     
-    // Store in history (except system messages)
-    if (type !== 'system') {
-      this.conversationHistory.push({ type, content });
-    }
+    // Store in history
+    this.conversationHistory.push({ type, content });
 
     // Scroll to bottom
     this.scrollToBottom();

@@ -41,8 +41,10 @@ class ExtensionBackground {
       this.context.availability = availability;
       this.context.hasGeminiNano = (availability === "available");
       
-      // Don't initialize session here - do it on demand
-      if (availability === "downloadable") {
+      // Initialize session if available
+      if (this.context.hasGeminiNano && !this.context.session) {
+        await this.initializeSession();
+      } else if (availability === "downloadable") {
         console.log("Gemini Nano model needs to be downloaded");
       } else if (availability === "downloading") {
         console.log("Gemini Nano model is downloading");
@@ -55,38 +57,19 @@ class ExtensionBackground {
   }
 
   async initializeSession() {
-    if (this.context.isInitializing) {
-      // Wait for ongoing initialization
-      while (this.context.isInitializing) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      return this.context.session;
-    }
+    if (this.context.isInitializing) return;
     
     this.context.isInitializing = true;
     try {
-      // Destroy old session if it exists
-      if (this.context.session) {
-        try {
-          await this.context.session.destroy();
-        } catch (e) {
-          console.log("Error destroying old session:", e);
-        }
-        this.context.session = null;
-      }
-
-      // Create new session
       this.context.session = await LanguageModel.create({
         systemPrompt: "You are a helpful AI assistant. Provide clear, concise, and accurate responses.",
         temperature: 0.7,
         topK: 40
       });
       console.log("AI session initialized successfully");
-      return this.context.session;
     } catch (error) {
       console.error("Failed to initialize AI session:", error);
       this.context.session = null;
-      throw error;
     } finally {
       this.context.isInitializing = false;
     }
@@ -129,7 +112,7 @@ class ExtensionBackground {
           
           sendResponse({
             available: this.context.hasGeminiNano,
-            hasSession: true, // Always report true since we create on demand
+            hasSession: !!this.context.session,
             downloading: this.context.availability === "downloading",
             downloadable: this.context.availability === "downloadable"
           });
@@ -174,40 +157,27 @@ class ExtensionBackground {
   }
 
   async generateText(prompt, callback) {
-    let session = null;
     try {
-      // Check if model is available
-      if (!this.context.hasGeminiNano) {
-        throw new Error("AI model not available");
+      // Ensure session exists
+      if (!this.context.session) {
+        if (this.context.hasGeminiNano) {
+          await this.initializeSession();
+        } else {
+          throw new Error("AI model not available");
+        }
       }
 
-      // Always create a fresh session for each request
-      // This prevents session state issues
-      session = await this.initializeSession();
-
-      if (!session) {
+      if (!this.context.session) {
         throw new Error("Failed to initialize AI session");
       }
 
-      // Use prompt() method
-      const response = await session.prompt(prompt);
+      // Use prompt() method (not generate())
+      const response = await this.context.session.prompt(prompt);
 
       callback({ success: true, response });
-      
     } catch (error) {
       console.error("Background generation error:", error);
       callback({ success: false, error: error.message });
-    } finally {
-      // Optionally destroy session after use to free resources
-      // Comment this out if you want to keep session between requests
-      if (session) {
-        try {
-          await session.destroy();
-          this.context.session = null;
-        } catch (e) {
-          console.log("Error destroying session:", e);
-        }
-      }
     }
   }
 

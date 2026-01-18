@@ -9,3 +9,6 @@
 20260117-124930-manifest.json:
 20260117-124909-background.js-bak:
 20260117-124826-popup.js-bak:
+20260117-131957-background.js-bak:
+20260117-124747-sidepanel.js-bak:
+20260117-124807-sidepanel.html:
